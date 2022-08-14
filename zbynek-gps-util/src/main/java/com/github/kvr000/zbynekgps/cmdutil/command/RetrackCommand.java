@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @Log4j2
 public class RetrackCommand extends AbstractCommand
 {
-	private Options options = new Options();
+	private Options options;
 
 	@Override
 	protected boolean parseOption(CommandContext context, String arg, ListIterator<String> args) throws Exception
@@ -46,6 +46,7 @@ public class RetrackCommand extends AbstractCommand
 		}
 	}
 
+	@Override
 	protected int parseNonOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
 		ImmutableList<String> remaining = ImmutableList.copyOf(args);
@@ -78,6 +79,12 @@ public class RetrackCommand extends AbstractCommand
 		GPX.write(output, Paths.get(options.output));
 		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		return EXIT_SUCCESS;
+	}
+
+	@Override
+	protected void createOptions(CommandContext context)
+	{
+		this.options = new Options();
 	}
 
 	@Override

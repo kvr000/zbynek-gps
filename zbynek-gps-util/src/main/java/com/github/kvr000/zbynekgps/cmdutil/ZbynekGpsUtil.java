@@ -1,5 +1,6 @@
 package com.github.kvr000.zbynekgps.cmdutil;
 
+import com.github.kvr000.zbynekgps.cmdutil.command.ConcatCommand;
 import com.github.kvr000.zbynekgps.cmdutil.command.RetrackCommand;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
@@ -19,7 +20,6 @@ import net.dryuf.cmdline.command.RootCommandContext;
 
 import javax.inject.Inject;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 
 
@@ -58,6 +58,7 @@ public class ZbynekGpsUtil extends AbstractParentCommand
 	protected Map<String, Class<? extends Command>> configSubCommands(CommandContext context)
 	{
 		return ImmutableMap.of(
+			"concat", ConcatCommand.class,
 			"retrack", RetrackCommand.class
 		);
 	}
@@ -65,6 +66,7 @@ public class ZbynekGpsUtil extends AbstractParentCommand
 	protected Map<String, String> configCommandsDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
+			"concat", "Concatenates multiple files into single one",
 			"retrack", "Recalculates location for time when the device did not have GPS signal"
 		);
 	}

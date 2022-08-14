@@ -30,6 +30,17 @@ flight and even a while later.  While the route is obviously slightly wrong
 (going straight instead of close to pole), the performance data was retained.
 
 
+## concat
+
+```
+zbynek-gps-util concat -o output.gpx one.gpx two.gpx three.gpx
+```
+
+The command concatenates multiple files into one, with the priority of data
+given by order of arguments.  The command automatically orders the points by
+time, no matter what is the order of parameters.
+
+
 ## Build
 
 You need to install:
@@ -76,6 +87,6 @@ The code is released under version 2.0 of the [Apache License][].
 
 ## Stay in Touch
 
-Feel free to contact me at kvr000@gmail.com  and http://github.com/kvr000/ and http://github.com/zbynek-gps/
+Feel free to contact me at kvr000@gmail.com  and http://github.com/kvr000/ and http://github.com/kvr000/zbynek-gps/
 
 [Apache License]: http://www.apache.org/licenses/LICENSE-2.0
