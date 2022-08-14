@@ -41,6 +41,16 @@ given by order of arguments.  The command automatically orders the points by
 time, no matter what is the order of parameters.
 
 
+## cut
+
+```
+zbynek-gps-util cut -o output.gpx -s 2022-08-14T18:12:01Z -e 2022-08-14T18:15:16Z
+```
+
+The command removes period specified by `-s` and `-e` parameters (inclusive)
+from the given gpx file and write it to the same file.
+
+
 ## Build
 
 You need to install:

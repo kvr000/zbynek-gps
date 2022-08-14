@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.time.Instant;
