@@ -63,7 +63,7 @@ public class TreeIterators
 	}
 
 	/**
-	 * Iterates over items from first array and enriches by sorted sequence from the second navigable map.  The
+	 * Iterates over items from first array and enriches with sorted sequence from the second navigable map.  The
 	 * result starts from the first item from the first stream and ends with the last item from the first stream,
 	 * other items from alternative stream are ignored.
 	 *
@@ -73,20 +73,23 @@ public class TreeIterators
 	 * 	alternative stream
 	 *
 	 * @return
-	 * 	original stream enriched by alternative stream if items were missing.
+	 * 	original stream enriched with alternative stream if items were missing.
 	 *
 	 * @param <K>
 	 *      type of key
 	 * @param <V>
 	 *      type of value
 	 */
-	public static <K extends Comparable<K>, V> Iterator<Map.Entry<K, V>> iterateEnriched(
+	public static <K extends Comparable<K>, V> Iterator<Map.Entry<K, V>> iterateEntryEnriched(
 			Iterator<? extends Map.Entry<K, V>> one, NavigableMap<K, V> two)
 	{
 		return new Iterator<>()
 		{
-			private K lastKey = null;
 			private Map.Entry<K, V> pendingOne = getNextSafe(one);
+
+			private Iterator<Map.Entry<K, V>> iteratorTwo = pendingOne == null ? null :
+				two.tailMap(pendingOne.getKey()).entrySet().iterator();
+			private Map.Entry<K, V> pendingTwo = iteratorTwo == null ? null : getNextSafe(iteratorTwo);
 
 			@Override
 			public boolean hasNext()
@@ -97,17 +100,21 @@ public class TreeIterators
 			@Override
 			public Map.Entry<K, V> next()
 			{
-				Map.Entry<K, V> pendingTwo;
+				Map.Entry<K, V> ret;
+				int cmp;
 				if (pendingOne == null) {
 					throw new NoSuchElementException("Iterator has no next");
 				}
-				if (lastKey != null && (pendingTwo = two.higherEntry(lastKey)) != null && pendingTwo.getKey().compareTo(pendingOne.getKey()) < 0) {
-					lastKey = pendingTwo.getKey();
-					return pendingTwo;
+				else if ((cmp = (pendingTwo == null ? -1 : pendingOne.getKey().compareTo(pendingTwo.getKey()))) <= 0) {
+					ret = pendingOne;
 				}
-				lastKey = pendingOne.getKey();
-				Map.Entry<K, V> ret = pendingOne;
-				pendingOne = getNextSafe(one);
+				else {
+					ret = pendingTwo;
+				}
+				if (cmp <= 0)
+					pendingOne = getNextSafe(one);
+				if (cmp >= 0)
+					pendingTwo = getNextSafe(iteratorTwo);
 				return ret;
 
 			}

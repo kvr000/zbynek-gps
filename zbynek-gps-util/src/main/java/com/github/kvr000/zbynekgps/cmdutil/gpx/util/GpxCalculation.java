@@ -1,8 +1,8 @@
 package com.github.kvr000.zbynekgps.cmdutil.gpx.util;
 
-import com.github.kvr000.zbynekgps.cmdutil.gpx.model.GpxPoint;
+import io.jenetics.jpx.Point;
+import io.jenetics.jpx.WayPoint;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -29,29 +29,29 @@ public class GpxCalculation
 	 * @return
 	 * 	calculated point at time.
 	 */
-	public static GpxPoint calculateMidpoint(GpxPoint o, GpxPoint n, Instant time)
+	public static Point calculateMidpoint(Point o, Point n, Instant time)
 	{
-		long diff = o.getTime().until(n.getTime(), ChronoUnit.MILLIS);
-		long current = o.getTime().until(time, ChronoUnit.MILLIS);
+		long diff = o.getTime().get().until(n.getTime().get(), ChronoUnit.MILLIS);
+		long current = o.getTime().get().until(time, ChronoUnit.MILLIS);
 		if (diff == 0) {
 			// this should not really happen, otherwise the p would already have the location
 			diff = 1;
 		}
 		double ratio = (double) current / diff;
 
-		double lngO = o.getLon().doubleValue(), lngN = n.getLon().doubleValue();
-		double latO = o.getLat().doubleValue(), latN = n.getLat().doubleValue();
+		double lngO = o.getLongitude().doubleValue(), lngN = n.getLongitude().doubleValue();
+		double latO = o.getLatitude().doubleValue(), latN = n.getLatitude().doubleValue();
 
 		double lngDiff = normalizeLng(lngN - lngO);
 
-		GpxPoint.Builder b = GpxPoint.builder()
+		WayPoint.Builder b = WayPoint.builder()
 				.time(time)
-				.lon(BigDecimal.valueOf(normalizeLng(lngO + lngDiff * ratio)))
-				.lat(BigDecimal.valueOf(latO + (latN - latO) * ratio));
+				.lon(normalizeLng(lngO + lngDiff * ratio))
+				.lat(latO + (latN - latO) * ratio);
 
-		if (o.getAlt() != null && n.getAlt() != null) {
-			double altO = o.getAlt().doubleValue(), altN = n.getAlt().doubleValue();
-			b.alt(BigDecimal.valueOf(altO+(altN-altO)*ratio));
+		if (o.getElevation().isPresent() && n.getElevation().isPresent()) {
+			double altO = o.getElevation().get().doubleValue(), altN = n.getElevation().get().doubleValue();
+			b.ele(altO + (altN -altO) * ratio);
 		}
 
 		return b.build();

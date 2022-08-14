@@ -1,6 +1,5 @@
 package com.github.kvr000.zbynekgps.cmdutil.gpx;
 
-import com.github.kvr000.zbynekgps.cmdutil.gpx.model.GpxPoint;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Collections;
@@ -12,22 +11,22 @@ import java.util.stream.Stream;
 
 public class GpxMerger
 {
-	public static GpxPoint mergePoints(GpxPoint one, GpxPoint two)
-	{
-		if (one == two)
-			return one;
-
-		return GpxPoint.builder()
-				.time(mergeField(one, two, GpxPoint::getTime))
-				.lon(mergeField(one, two, GpxPoint::getLon))
-				.lat(mergeField(one, two, GpxPoint::getLat))
-				.alt(mergeField(one, two, GpxPoint::getAlt))
-				.additional(mergeMaps(
-						Optional.ofNullable(one).map(GpxPoint::getAdditional).orElse(null),
-						Optional.ofNullable(two).map(GpxPoint::getAdditional).orElse(null)
-				))
-				.build();
-	}
+//	public static WayPoint mergePoints(WayPoint one, WayPoint two)
+//	{
+//		if (one == two)
+//			return one;
+//
+//		return WayPoint.builder()
+//				.time(mergeField(one, two, WayPoint::getTime))
+//				.lon(mergeField(one, two, WayPoint::getLon))
+//				.lat(mergeField(one, two, WayPoint::getLat))
+//				.alt(mergeField(one, two, WayPoint::getAlt))
+//				.additional(mergeMaps(
+//						Optional.ofNullable(one).map(GpxPoint::getAdditional).orElse(null),
+//						Optional.ofNullable(two).map(GpxPoint::getAdditional).orElse(null)
+//				))
+//				.build();
+//	}
 
 	private static Map<String, String> mergeMaps(Map<String, String> one, Map<String, String> two)
 	{

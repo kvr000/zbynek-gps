@@ -26,7 +26,7 @@ public class TreeIteratorsTest
 		));
 
 		List<Map.Entry<Integer, Integer>> result =
-			Streams.stream(TreeIterators.iterateEnriched(list.entrySet().iterator(), added))
+			Streams.stream(TreeIterators.iterateEntryEnriched(list.entrySet().iterator(), added))
 			.collect(ImmutableList.toImmutableList());
 
 		assertEquals(
@@ -46,7 +46,7 @@ public class TreeIteratorsTest
 		));
 
 		List<Map.Entry<Integer, Integer>> result =
-			Streams.stream(TreeIterators.iterateEnriched(list.entrySet().iterator(), added))
+			Streams.stream(TreeIterators.iterateEntryEnriched(list.entrySet().iterator(), added))
 			.collect(ImmutableList.toImmutableList());
 
 		assertEquals(
@@ -68,7 +68,7 @@ public class TreeIteratorsTest
 		));
 
 		List<Map.Entry<Integer, Integer>> result =
-			Streams.stream(TreeIterators.iterateEnriched(list.entrySet().iterator(), added))
+			Streams.stream(TreeIterators.iterateEntryEnriched(list.entrySet().iterator(), added))
 			.collect(ImmutableList.toImmutableList());
 
 		assertEquals(
@@ -93,7 +93,7 @@ public class TreeIteratorsTest
 		));
 
 		List<Map.Entry<Integer, Integer>> result =
-			Streams.stream(TreeIterators.iterateEnriched(list.entrySet().iterator(), added))
+			Streams.stream(TreeIterators.iterateEntryEnriched(list.entrySet().iterator(), added))
 			.collect(ImmutableList.toImmutableList());
 
 		assertEquals(

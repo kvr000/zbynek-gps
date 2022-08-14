@@ -1,10 +1,14 @@
 package com.github.kvr000.zbynekgps.cmdutil.gpx.util;
 
-import com.github.kvr000.zbynekgps.cmdutil.gpx.model.GpxPoint;
+import io.jenetics.jpx.Latitude;
+import io.jenetics.jpx.Length;
+import io.jenetics.jpx.Longitude;
+import io.jenetics.jpx.Point;
+import io.jenetics.jpx.WayPoint;
 import org.testng.annotations.Test;
 
-import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
 
@@ -38,75 +42,75 @@ public class GpxCalculationTest
 	@Test
 	public void calculateMidPoint_positive_middle()
 	{
-		GpxPoint result = GpxCalculation.calculateMidpoint(
-			GpxPoint.builder()
+		Point result = GpxCalculation.calculateMidpoint(
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
-				.lon(BigDecimal.valueOf(10))
-				.lat(BigDecimal.valueOf(60))
-				.alt(BigDecimal.valueOf(1000))
+				.lon(10)
+				.lat(60)
+				.ele(1000)
 				.build(),
-			GpxPoint.builder()
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(8))
-				.lon(BigDecimal.valueOf(30))
-				.lat(BigDecimal.valueOf(72))
-				.alt(BigDecimal.valueOf(2000))
+				.lon(30)
+				.lat(72)
+				.ele(2000)
 				.build(),
 			Instant.ofEpochSecond(2)
 		);
 
-		assertEquals(result.getTime(), Instant.ofEpochSecond(2));
-		assertEquals(result.getLon(), BigDecimal.valueOf(15.0));
-		assertEquals(result.getLat(), BigDecimal.valueOf(63.0));
-		assertEquals(result.getAlt(), BigDecimal.valueOf(1250.0));
+		assertEquals(result.getTime(), Optional.of(Instant.ofEpochSecond(2)));
+		assertEquals(result.getLongitude(), Longitude.ofDegrees(15.0));
+		assertEquals(result.getLatitude(), Latitude.ofDegrees(63.0));
+		assertEquals(result.getElevation(), Optional.of(Length.of(1250.0, Length.Unit.METER)));
 	}
 
 	@Test
 	public void calculateMidPoint_negative_middle()
 	{
-		GpxPoint result = GpxCalculation.calculateMidpoint(
-			GpxPoint.builder()
+		Point result = GpxCalculation.calculateMidpoint(
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
-				.lon(BigDecimal.valueOf(30))
-				.lat(BigDecimal.valueOf(72))
-				.alt(BigDecimal.valueOf(2000))
+				.lon(30)
+				.lat(72)
+				.ele(2000)
 				.build(),
-			GpxPoint.builder()
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(8))
-				.lon(BigDecimal.valueOf(10))
-				.lat(BigDecimal.valueOf(60))
-				.alt(BigDecimal.valueOf(1000))
+				.lon(10)
+				.lat(60)
+				.ele(1000)
 				.build(),
 			Instant.ofEpochSecond(2)
 		);
 
-		assertEquals(result.getTime(), Instant.ofEpochSecond(2));
-		assertEquals(result.getLon(), BigDecimal.valueOf(25.0));
-		assertEquals(result.getLat(), BigDecimal.valueOf(69.0));
-		assertEquals(result.getAlt(), BigDecimal.valueOf(1750.0));
+		assertEquals(result.getTime(), Optional.of(Instant.ofEpochSecond(2)));
+		assertEquals(result.getLongitude(), Longitude.ofDegrees(25));
+		assertEquals(result.getLatitude(), Latitude.ofDegrees(69));
+		assertEquals(result.getElevation(), Optional.of(Length.of(1750, Length.Unit.METER)));
 	}
 
 	@Test
 	public void calculateMidPoint_pacific_middle()
 	{
-		GpxPoint result = GpxCalculation.calculateMidpoint(
-			GpxPoint.builder()
+		Point result = GpxCalculation.calculateMidpoint(
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
-				.lon(BigDecimal.valueOf(170))
-				.lat(BigDecimal.valueOf(60))
-				.alt(BigDecimal.valueOf(1000))
+				.lon(170)
+				.lat(60)
+				.ele(1000)
 				.build(),
-			GpxPoint.builder()
+			WayPoint.builder()
 				.time(Instant.ofEpochSecond(8))
-				.lon(BigDecimal.valueOf(-170))
-				.lat(BigDecimal.valueOf(72))
-				.alt(BigDecimal.valueOf(2000))
+				.lon(-170)
+				.lat(72)
+				.ele(2000)
 				.build(),
 			Instant.ofEpochSecond(2)
 		);
 
-		assertEquals(result.getTime(), Instant.ofEpochSecond(2));
-		assertEquals(result.getLon(), BigDecimal.valueOf(175.0));
-		assertEquals(result.getLat(), BigDecimal.valueOf(63.0));
-		assertEquals(result.getAlt(), BigDecimal.valueOf(1250.0));
+		assertEquals(result.getTime(), Optional.of(Instant.ofEpochSecond(2)));
+		assertEquals(result.getLongitude(), Longitude.ofDegrees(175));
+		assertEquals(result.getLatitude(), Latitude.ofDegrees(63));
+		assertEquals(result.getElevation(), Optional.of(Length.of(1250, Length.Unit.METER)));
 	}
 }
