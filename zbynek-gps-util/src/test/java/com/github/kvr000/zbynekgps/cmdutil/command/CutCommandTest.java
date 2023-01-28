@@ -19,7 +19,7 @@ public class CutCommandTest
 	{
 		Track result = CutCommand.cutTrack(
 			createTrack(2, 3, 4),
-			new CutCommand.Options("", Instant.ofEpochSecond(0), Instant.ofEpochSecond(1))
+			new CutCommand.Options(Instant.ofEpochSecond(0), Instant.ofEpochSecond(1))
 		);
 
 		assertEquals(
@@ -33,7 +33,7 @@ public class CutCommandTest
 	{
 		Track result = CutCommand.cutTrack(
 			createTrack(0, 1, 2, 3, 4),
-			new CutCommand.Options("", Instant.ofEpochSecond(0), Instant.ofEpochSecond(1))
+			new CutCommand.Options(Instant.ofEpochSecond(0), Instant.ofEpochSecond(1))
 		);
 
 		assertEquals(
@@ -47,7 +47,7 @@ public class CutCommandTest
 	{
 		Track result = CutCommand.cutTrack(
 			createTrack(0, 1, 2, 3, 4),
-			new CutCommand.Options("", Instant.ofEpochSecond(3), Instant.ofEpochSecond(4))
+			new CutCommand.Options(Instant.ofEpochSecond(3), Instant.ofEpochSecond(4))
 		);
 
 		assertEquals(
@@ -61,7 +61,7 @@ public class CutCommandTest
 	{
 		Track result = CutCommand.cutTrack(
 			createTrack(0, 1, 2, 3, 4),
-			new CutCommand.Options("", Instant.ofEpochSecond(0), Instant.ofEpochSecond(4))
+			new CutCommand.Options(Instant.ofEpochSecond(0), Instant.ofEpochSecond(4))
 		);
 
 		assertEquals(
@@ -76,7 +76,7 @@ public class CutCommandTest
 	{
 		Track result = CutCommand.cutTrack(
 			createTrack(0, 1, 2, 3, 4),
-			new CutCommand.Options("", Instant.ofEpochSecond(2), Instant.ofEpochSecond(3))
+			new CutCommand.Options(Instant.ofEpochSecond(2), Instant.ofEpochSecond(3))
 		);
 
 		assertEquals(

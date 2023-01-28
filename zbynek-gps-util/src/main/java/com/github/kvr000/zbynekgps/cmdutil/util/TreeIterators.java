@@ -1,10 +1,18 @@
 package com.github.kvr000.zbynekgps.cmdutil.util;
 
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 
 public class TreeIterators
@@ -60,6 +68,43 @@ public class TreeIterators
 			}
 
 		};
+	}
+
+	public static <K extends Comparable<K>, V> NavigableMap<K, V> mergeMapsPrioritized(List<NavigableMap<K, V>> maps, List<Integer> priorities)
+	{
+		List<NavigableMap<K, V>> prioritized = priorities.stream()
+			.map(prio -> maps.get(prio))
+			.collect(Collectors.toList());
+		List<MutablePair<Map.Entry<K, V>, Iterator<Map.Entry<K, V>>>> currents = prioritized.stream()
+			.map(map -> map.entrySet().iterator())
+			.filter(Iterator::hasNext)
+			.map(i -> MutablePair.of(i.next(), i))
+			.collect(Collectors.toCollection(ArrayList::new));
+
+		TreeMap<K, V> result = new TreeMap<>();
+		for (;;) {
+			Map.Entry<K, V> lowest = currents.stream()
+				.sorted(Comparator.comparing(e -> e.getLeft().getKey()))
+				.findFirst()
+				.map(p -> p.getLeft())
+				.orElse(null);
+			if (lowest == null) {
+				break;
+			}
+			result.put(lowest.getKey(), lowest.getValue());
+			for (Iterator<MutablePair<Map.Entry<K, V>, Iterator<Map.Entry<K, V>>>> it = currents.iterator(); it.hasNext(); ) {
+				MutablePair<Map.Entry<K, V>, Iterator<Map.Entry<K, V>>> t = it.next();
+				if (t.getLeft().getKey().equals(lowest.getKey())) {
+					if (t.getRight().hasNext()) {
+						t.setLeft(t.getRight().next());
+					}
+					else {
+						it.remove();
+					}
+				}
+			}
+		}
+		return result;
 	}
 
 	/**

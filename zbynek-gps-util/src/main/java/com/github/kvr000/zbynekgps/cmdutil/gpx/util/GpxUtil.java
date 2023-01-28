@@ -10,6 +10,15 @@ import java.time.Instant;
 
 public class GpxUtil
 {
+	/**
+	 * Finds boundaries for {@link TrackSegment}, ignoring any points without time.
+	 *
+	 * @param segment
+	 * 	track segment to explore
+	 *
+	 * @return
+	 * 	a pair of start and end time for the segment.
+	 */
 	public static Range<Instant> findBoundaries(TrackSegment segment)
 	{
 		Instant start = segment.points()

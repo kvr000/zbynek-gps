@@ -1,22 +1,31 @@
 package com.github.kvr000.zbynekgps.cmdutil.command;
 
+import com.github.kvr000.zbynekgps.cmdutil.ZbynekGpsUtil;
 import com.github.kvr000.zbynekgps.cmdutil.gpx.util.GpxCalculation;
+import com.github.kvr000.zbynekgps.cmdutil.util.TreeIterators;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Streams;
 import io.jenetics.jpx.GPX;
 import io.jenetics.jpx.Point;
 import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
-import lombok.extern.log4j.Log4j;
+import lombok.Builder;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import lombok.extern.log4j.Log4j2;
 import net.dryuf.cmdline.command.AbstractCommand;
 import net.dryuf.cmdline.command.CommandContext;
-import org.apache.commons.lang3.mutable.MutableObject;
 
+import javax.inject.Inject;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -24,21 +33,44 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 
 @Log4j2
+@RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class RetrackCommand extends AbstractCommand
 {
-	private Options options;
+	final ZbynekGpsUtil.Options mainOptions;
+
+	Options options;
 
 	@Override
 	protected boolean parseOption(CommandContext context, String arg, ListIterator<String> args) throws Exception
 	{
 		switch (arg) {
-		case "-o":
-			options.output = needArgsParam(options.output, args);
+		case "--position-prio":
+			options.positionPriority = Stream.of(needArgsParam(options.positionPriority, args).split(","))
+				.map(Integer::parseInt)
+				.collect(Collectors.toList());
+			return true;
+
+		case "--elevation-prio":
+			options.positionPriority = Stream.of(needArgsParam(options.elevationPriority, args).split(","))
+				.map(Integer::parseInt)
+				.collect(Collectors.toList());
+			return true;
+
+		case "--no-calc-missing":
+			if (options.calculateMissing != null) {
+				throw new IllegalArgumentException("option specified twice");
+			}
+			options.calculateMissing = false;
+			return true;
+
+		case "--merge-timeout":
+			options.mergeTimeout = Integer.parseInt(needArgsParam(options.mergeTimeout, args));
 			return true;
 
 		default:
@@ -50,18 +82,48 @@ public class RetrackCommand extends AbstractCommand
 	protected int parseNonOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
 		ImmutableList<String> remaining = ImmutableList.copyOf(args);
-		if (remaining.size() != 1) {
-			return usage(context, "Need one more parameter as source file");
+		if (remaining.size() < 1) {
+			return usage(context, "Need at least one parameter as source file");
 		}
-		options.mainInput = remaining.get(0);
+		options.inputs = remaining;
 		return EXIT_CONTINUE;
 	}
 
 	@Override
 	protected int validateOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
-		if (options.output == null) {
+		if (mainOptions.getOutput() == null) {
 			return usage(context, "-o output option is mandatory");
+		}
+		if (options.positionPriority == null) {
+			options.positionPriority = IntStream.range(0, options.inputs.size())
+				.boxed()
+				.collect(Collectors.toList());
+		}
+		else {
+			for (int i: options.positionPriority) {
+				if (i < 0 || i >= options.inputs.size()) {
+					return usage(context, "--position-prio requires list within range of 0 and less than number of sources");
+				}
+			}
+		}
+		if (options.elevationPriority == null) {
+			options.elevationPriority = IntStream.range(0, options.inputs.size())
+				.boxed()
+				.collect(Collectors.toList());
+		}
+		else {
+			for (int i: options.elevationPriority) {
+				if (i < 0 || i >= options.inputs.size()) {
+					return usage(context, "--elevation-prio requires list within range of 0 and less than number of sources");
+				}
+			}
+		}
+		if (options.calculateMissing == null) {
+			options.calculateMissing = true;
+		}
+		if (options.mergeTimeout == null) {
+			options.mergeTimeout = 2;
 		}
 		return EXIT_CONTINUE;
 	}
@@ -70,13 +132,24 @@ public class RetrackCommand extends AbstractCommand
 	public int execute() throws Exception
 	{
 		Stopwatch watch = Stopwatch.createStarted();
-		GPX main = GPX.read(Paths.get(options.mainInput));
-		log.info("Read input file in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
+		List<GPX> gpxs = options.inputs.parallelStream()
+			.map(name -> {
+				try {
+					return GPX.read(Paths.get(name));
+				}
+				catch (IOException e) {
+					throw new UncheckedIOException(e);
+				}
+			})
+			.collect(Collectors.toList());
+		log.info("Read input files in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
+		List<NavigableMap<Instant, PointSource>> pointData = buildPointData(gpxs);
+		PointSources pointSources = buildPointSources(pointData);
 		watch.reset(); watch.start();
-		GPX output = enrichLocations(main);
+		GPX output = enrichLocations(gpxs.get(0), pointSources);
 		log.info("Retracked locations in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		watch.reset(); watch.start();
-		GPX.write(output, Paths.get(options.output));
+		GPX.write(output, Paths.get(mainOptions.getOutput()));
 		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		return EXIT_SUCCESS;
 	}
@@ -91,39 +164,26 @@ public class RetrackCommand extends AbstractCommand
 	protected Map<String, String> configOptionsDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
-			"-o output", "output filename"
+			"--position-prio", "comma separated source file indexes to obtain position from, 0 refers to main file - example 0,2,1",
+			"--elevation-prio", "comma separated source file indexes to obtain elevation from, 0 refers to main file - example 0,2,1",
+			"--no-calc-missing", "do not calculate missing points",
+			"--merge-timeout", "minimum timeout to include point from different source"
 		);
 	}
 
 	protected Map<String, String> configParametersDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
-			"source", "file to retrack"
+			"main-file", "main source file",
+			"source-files...", "additional files to use as source, the first"
 		);
 	}
 
-	static GPX enrichLocations(GPX main)
+	GPX enrichLocations(GPX main, PointSources pointSources)
 	{
-		MutableObject<WayPoint> previous = new MutableObject<>();
-		TreeMap<Instant, WayPoint> locations = main.getTracks().stream()
-			.flatMap(Track::segments)
-			.flatMap(TrackSegment::points)
-			.filter(p -> p.getTime().isPresent())
-			.filter((WayPoint p) -> previous.getValue() == null || !(
-				p.getLongitude().equals(previous.getValue().getLongitude()) &&
-					p.getLatitude().equals(previous.getValue().getLatitude()))
-			)
-			.map(p -> { previous.setValue(p); return p; })
-			.collect(Collectors.toMap(
-				p -> p.getTime().get(),
-				Function.identity(),
-				(a, b) -> {throw new IllegalArgumentException("two points for the same time");},
-				TreeMap::new
-			));
-
 		GPX result = main.toBuilder()
 			.tracks(main.getTracks().stream()
-				.map(s -> enrichLocations(s, locations))
+				.map(s -> enrichLocations(s, pointSources))
 				.collect(ImmutableList.toImmutableList())
 			)
 			.build();
@@ -131,95 +191,137 @@ public class RetrackCommand extends AbstractCommand
 		return result;
 	}
 
-	static Track enrichLocations(Track track, NavigableMap<Instant, WayPoint> locations)
+	Track enrichLocations(Track track, PointSources pointSources)
 	{
 		return track.toBuilder()
 			.segments(track.segments().parallel()
-				.map(s -> enrichLocations(s, locations))
+				.map(s -> enrichLocations(s, pointSources))
 				.collect(ImmutableList.toImmutableList())
 			)
 			.build();
 	}
 
-	static TrackSegment enrichLocations(TrackSegment segment, NavigableMap<Instant, WayPoint> locations)
+	TrackSegment enrichLocations(TrackSegment segment, PointSources pointSources)
 	{
 		return segment.toBuilder()
 				.points(segment.getPoints().stream()
-						.map(p -> enrichLocation(p, locations))
+						.map(p -> calculateLocation(p, pointSources))
 						.collect(ImmutableList.toImmutableList())
 				)
 				.build();
 	}
 
-	static WayPoint enrichLocation(WayPoint p, NavigableMap<Instant, WayPoint> locations)
+	WayPoint calculateLocation(WayPoint p, PointSources pointSources)
 	{
-		Instant time = p.getTime().get();
-		if (locations.containsKey(time)) {
-			return p;
+		final Instant time = p.getTime().get();
+		final WayPoint.Builder b = p.toBuilder();
+		PointSource position;
+		if ((position = pointSources.getPositions().get(time)) != null) {
+			b
+				.lon(position.getPoint().getLongitude())
+				.lat(position.getPoint().getLatitude());
 		}
-		WayPoint o = Optional.ofNullable(locations.floorEntry(time)).map(Map.Entry::getValue).orElse(null);
-		WayPoint n = Optional.ofNullable(locations.ceilingEntry(p.getTime().get())).map(Map.Entry::getValue).orElse(null);
-		if (o == null || n == null) {
-			return p;
+		else {
+			WayPoint o = Optional.ofNullable(pointSources.getPositions().floorEntry(time)).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
+			WayPoint n = Optional.ofNullable(pointSources.getPositions().ceilingEntry(p.getTime().get())).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
+			if (o != null && n != null) {
+				Point m = GpxCalculation.calculateMidpoint(o, n, time);
+				b
+					.lon(m.getLongitude())
+					.lat(m.getLatitude());
+			}
 		}
-		Point m = GpxCalculation.calculateMidpoint(o, n, time);
-		return p.toBuilder()
-				.lon(m.getLongitude())
-				.lat(m.getLatitude())
-				.ele(m.getElevation().orElse(null))
-				.build();
+		PointSource elevation;
+		if ((elevation = pointSources.getPositions().get(time)) != null) {
+			b.ele(elevation.getPoint().getElevation().orElse(null));
+		}
+		else {
+			WayPoint o = Optional.ofNullable(pointSources.getElevations().floorEntry(time)).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
+			WayPoint n = Optional.ofNullable(pointSources.getElevations().ceilingEntry(p.getTime().get())).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
+			if (o != null && n != null) {
+				Point m = GpxCalculation.calculateMidpoint(o, n, time);
+				b
+					.ele(m.getElevation().orElse(null));
+			}
+		}
+		return b.build();
 	}
 
-//	static GpxFile mergeFiles(GpxFile main, GpxFile add)
-//	{
-//		TreeMap<Instant, GpxPoint> addPoints = buildTree(add);
-//
-//		GpxFile result = main.toBuilder()
-//				.segments(main.getSegments().stream()
-//						.map(s -> mergeSegment(s, addPoints))
-//						.collect(ImmutableList.toImmutableList())
-//				)
-//				.build();
-//
-//		return result;
-//	}
+	PointSources buildPointSources(List<NavigableMap<Instant, PointSource>> pointData)
+	{
+		return PointSources.builder()
+			.positions(TreeIterators.mergeMapsPrioritized(pointData, options.positionPriority))
+			.elevations(TreeIterators.mergeMapsPrioritized(
+				pointData.stream()
+					.map(map -> map.entrySet().stream()
+						.filter(ps -> ps.getValue().getPoint().getElevation().isPresent())
+						.collect(ImmutableSortedMap.toImmutableSortedMap(Comparator.naturalOrder(), Map.Entry::getKey, Map.Entry::getValue))
+					)
+					.collect(Collectors.toList()),
+				options.elevationPriority))
+			.build();
+	}
 
-//	static GpxSegment mergeSegment(GpxSegment segment, NavigableMap<Instant, GpxPoint> two)
-//	{
-//		return segment.toBuilder()
-//				.points(Streams.stream(
-//						TreeIterators.iterateEnriched(
-//								segment.getPoints().stream()
-//										.map(p -> new AbstractMap.SimpleImmutableEntry<>(p.getTime(), p))
-//										.collect(ImmutableList.<Map.Entry<Instant, GpxPoint>>toImmutableList()).iterator(),
-//								two
-//						))
-//						.map(p -> GpxMerger.mergePoints(p.getValue(), two.get(p.getKey())))
-//						.collect(ImmutableList.toImmutableList())
-//				)
-//				.build();
-//	}
+	List<NavigableMap<Instant, PointSource>> buildPointData(List<GPX> sources)
+	{
+		List<NavigableMap<Instant, WayPoint>> sourcesPoints = sources.parallelStream()
+			.map(source -> source.tracks()
+				.flatMap(track -> track.segments())
+				.flatMap(segment -> segment.points())
+				.filter(point -> point.getTime().isPresent())
+				.collect(Collectors.toMap(
+					p -> p.getTime().get(),
+					p ->p,
+					(a, b) -> { throw new IllegalArgumentException("time appeared twice"); },
+					TreeMap::new
+				))
+			)
+			.collect(Collectors.toList());
+		List<NavigableMap<Instant, PointSource>> result =
+			Streams.zip(IntStream.rangeClosed(0, sourcesPoints.size()).boxed(), sourcesPoints.stream(), (id, map) -> {
+				TreeMap<Instant, PointSource> tree = new TreeMap<>();
+				WayPoint last = null;
+				for (WayPoint n : map.values()) {
+					if (last == null || (!n.getLongitude().equals(last.getLongitude()) || !n.getLatitude().equals(last.getLatitude()))) {
+						tree.put(n.getTime().get(), new PointSource(n, id, map));
+						last = n;
+					}
+				}
+				return tree;
+			})
+			.collect(Collectors.toList());
+		return result;
+	}
 
-//	static TreeMap<Instant, GpxPoint> buildTree(GpxFile file)
-//	{
-//		return file.getSegments().stream()
-//				.flatMap(s -> s.getPoints().stream())
-//				.collect(Collectors.toMap(
-//						GpxPoint::getTime,
-//						Function.identity(),
-//						(a, b) -> { throw new IllegalArgumentException("two points for the same time"); },
-//						TreeMap::new
-//				));
-//	}
+	@Value
+	@Builder
+	public static class PointSources
+	{
+		private final NavigableMap<Instant, PointSource> positions;
+
+		private final NavigableMap<Instant, PointSource> elevations;
+	}
+
+	@Value
+	public static class PointSource
+	{
+		private final WayPoint point;
+
+		private final int sourceId;
+
+		private final NavigableMap<Instant, WayPoint> source;
+	}
 
 	public static class Options
 	{
-		private String output;
+		List<String> inputs;
 
-		private String mainInput;
+		List<Integer> positionPriority;
 
-		private List<String> inputs;
+		List<Integer> elevationPriority;
 
-		boolean completeLocation;
+		Boolean calculateMissing = true;
+
+		Integer mergeTimeout;
 	}
 }

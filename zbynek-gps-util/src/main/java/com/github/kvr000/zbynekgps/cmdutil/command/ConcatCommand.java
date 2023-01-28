@@ -1,58 +1,42 @@
 package com.github.kvr000.zbynekgps.cmdutil.command;
 
-import com.github.kvr000.zbynekgps.cmdutil.gpx.util.GpxCalculation;
+import com.github.kvr000.zbynekgps.cmdutil.ZbynekGpsUtil;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
 import io.jenetics.jpx.GPX;
-import io.jenetics.jpx.Point;
 import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import net.dryuf.cmdline.command.AbstractCommand;
 import net.dryuf.cmdline.command.CommandContext;
-import org.apache.commons.lang3.mutable.MutableObject;
 
-import javax.swing.text.Segment;
+import javax.inject.Inject;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 
 @Log4j2
+@RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class ConcatCommand extends AbstractCommand
 {
+	private final ZbynekGpsUtil.Options mainOptions;
+
 	private Options options;
-
-	@Override
-	protected boolean parseOption(CommandContext context, String arg, ListIterator<String> args) throws Exception
-	{
-		switch (arg) {
-		case "-o":
-			options.output = needArgsParam(options.output, args);
-			return true;
-
-		default:
-			return super.parseOption(context, arg, args);
-		}
-	}
 
 	@Override
 	protected int parseNonOptions(CommandContext context, ListIterator<String> args) throws Exception
@@ -68,7 +52,7 @@ public class ConcatCommand extends AbstractCommand
 	@Override
 	protected int validateOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
-		if (options.output == null) {
+		if (mainOptions.getOutput() == null) {
 			return usage(context, "-o output option is mandatory");
 		}
 		if (options.inputs == null) {
@@ -98,7 +82,7 @@ public class ConcatCommand extends AbstractCommand
 			.collect(ImmutableList.toImmutableList())
 		);
 		Stopwatch watch = Stopwatch.createStarted();
-		GPX.write(output.build(), Paths.get(options.output));
+		GPX.write(output.build(), Paths.get(mainOptions.getOutput()));
 		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		return EXIT_SUCCESS;
 	}
@@ -218,20 +202,6 @@ public class ConcatCommand extends AbstractCommand
 		}
 	}
 
-	@Override
-	protected void createOptions(CommandContext context)
-	{
-		this.options = new Options();
-	}
-
-	@Override
-	protected Map<String, String> configOptionsDescription(CommandContext context)
-	{
-		return ImmutableMap.of(
-			"-o output", "output filename"
-		);
-	}
-
 	protected Map<String, String> configParametersDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
@@ -241,8 +211,6 @@ public class ConcatCommand extends AbstractCommand
 
 	public static class Options
 	{
-		private String output;
-
 		private List<String> inputs;
 	}
 

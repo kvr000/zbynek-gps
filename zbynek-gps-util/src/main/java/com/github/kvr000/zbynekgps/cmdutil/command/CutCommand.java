@@ -1,5 +1,6 @@
 package com.github.kvr000.zbynekgps.cmdutil.command;
 
+import com.github.kvr000.zbynekgps.cmdutil.ZbynekGpsUtil;
 import com.github.kvr000.zbynekgps.cmdutil.gpx.util.GpxUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -11,11 +12,13 @@ import io.jenetics.jpx.TrackSegment;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import net.dryuf.cmdline.command.AbstractCommand;
 import net.dryuf.cmdline.command.CommandContext;
 
+import javax.inject.Inject;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
@@ -27,18 +30,17 @@ import java.util.TreeMap;
 
 
 @Log4j2
+@RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class CutCommand extends AbstractCommand
 {
+	private final ZbynekGpsUtil.Options mainOptions;
+
 	private Options options;
 
 	@Override
 	protected boolean parseOption(CommandContext context, String arg, ListIterator<String> args) throws Exception
 	{
 		switch (arg) {
-		case "-o":
-			options.output = needArgsParam(options.output, args);
-			return true;
-
 		case "-s":
 			options.start = Instant.parse(needArgsParam(options.start, args));
 			return true;
@@ -55,7 +57,7 @@ public class CutCommand extends AbstractCommand
 	@Override
 	protected int validateOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
-		if (options.output == null) {
+		if (mainOptions.getOutput() == null) {
 			return usage(context, "-o output option is mandatory");
 		}
 		if (options.start == null) {
@@ -74,7 +76,7 @@ public class CutCommand extends AbstractCommand
 
 		NavigableMap<Instant, TrackDetail> tracks = new TreeMap<>(); // end : segment
 
-		GPX main = GPX.read(Paths.get(options.output));
+		GPX main = GPX.read(Paths.get(mainOptions.getOutput()));
 		output = main.toBuilder();
 		output.tracks(main.tracks()
 			.map(t -> cutTrack(t, options))
@@ -82,7 +84,7 @@ public class CutCommand extends AbstractCommand
 			.filter(t -> !t.isEmpty())
 			.collect(ImmutableList.toImmutableList())
 		);
-		GPX.write(output.build(), Paths.get(options.output));
+		GPX.write(output.build(), Paths.get(mainOptions.getOutput()));
 		return EXIT_SUCCESS;
 	}
 
@@ -176,8 +178,6 @@ public class CutCommand extends AbstractCommand
 	@NoArgsConstructor
 	public static class Options
 	{
-		private String output;
-
 		private Instant start;
 
 		private Instant end;

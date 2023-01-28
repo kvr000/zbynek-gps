@@ -13,7 +13,7 @@ zbynek-gps-util [options] subcommand [options] arguments
 ## retrack
 
 ```
-zbynek-gps-util retrack -o output.gpx input.gpx
+zbynek-gps-util retrack -o output.gpx --position-prio 0,1,2 --elevation-prio 1,2,0 input.gpx another.gpx more.gpx ...
 ```
 
 The command detects periods when device did not have GPS signal and stored the
