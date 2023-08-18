@@ -62,11 +62,14 @@ public class RetrackCommand extends AbstractCommand
 				.collect(Collectors.toList());
 			return true;
 
-		case "--no-calc-missing":
-			if (options.calculateMissing != null) {
+		case "--calc-missing":
+			if (true) {
+				throw new IllegalArgumentException("option unsupported");
+			}
+			if (options.calculateMissing) {
 				throw new IllegalArgumentException("option specified twice");
 			}
-			options.calculateMissing = false;
+			options.calculateMissing = true;
 			return true;
 
 		case "--merge-timeout":
@@ -119,9 +122,6 @@ public class RetrackCommand extends AbstractCommand
 				}
 			}
 		}
-		if (options.calculateMissing == null) {
-			options.calculateMissing = true;
-		}
 		if (options.mergeTimeout == null) {
 			options.mergeTimeout = 2;
 		}
@@ -166,7 +166,7 @@ public class RetrackCommand extends AbstractCommand
 		return ImmutableMap.of(
 			"--position-prio", "comma separated source file indexes to obtain position from, 0 refers to main file - example 0,2,1",
 			"--elevation-prio", "comma separated source file indexes to obtain elevation from, 0 refers to main file - example 0,2,1",
-			"--no-calc-missing", "do not calculate missing points",
+			"--calc-missing", "do not calculate missing points",
 			"--merge-timeout", "minimum timeout to include point from different source"
 		);
 	}
@@ -320,7 +320,7 @@ public class RetrackCommand extends AbstractCommand
 
 		List<Integer> elevationPriority;
 
-		Boolean calculateMissing = true;
+		boolean calculateMissing = false;
 
 		Integer mergeTimeout;
 	}
