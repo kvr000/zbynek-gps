@@ -1,19 +1,25 @@
-# Zbynek GPS Utilitilies - zbynek-gps-util command line utility
+# Zbynek GPS Utilitilies - zbynek-gps-tool command line utility
 
 Command line utility to manipulate GPX files.
+
+
+## Download
+
+- https://github.com/kvr000/zbynek-gps/releases/download/master/zbynek-gps-tool
+- https://github.com/kvr000/zbynek-gps/releases/tag/master
 
 
 ## Usage
 
 ```
-zbynek-gps-util [options] subcommand [options] arguments
+zbynek-gps-tool [options] subcommand [options] arguments
 ```
 
 
 ## retrack
 
 ```
-zbynek-gps-util retrack -o output.gpx --position-prio 0,1,2 --elevation-prio 1,2,0 input.gpx another.gpx more.gpx ...
+zbynek-gps-tool retrack -o output.gpx --position-prio 0,1,2 --elevation-prio 1,2,0 input.gpx another.gpx more.gpx ...
 ```
 
 The command detects periods when device did not have GPS signal and stored the
@@ -33,7 +39,7 @@ flight and even a while later.  While the route is obviously slightly wrong
 ## concat
 
 ```
-zbynek-gps-util concat -o output.gpx one.gpx two.gpx three.gpx
+zbynek-gps-tool concat -o output.gpx one.gpx two.gpx three.gpx
 ```
 
 The command concatenates multiple files into one, with the priority of data
@@ -44,7 +50,7 @@ time, no matter what is the order of parameters.
 ## cut
 
 ```
-zbynek-gps-util cut -o output.gpx -s 2022-08-14T18:12:01Z -e 2022-08-14T18:15:16Z
+zbynek-gps-tool cut -o output.gpx -s 2022-08-14T18:12:01Z -e 2022-08-14T18:15:16Z
 ```
 
 The command removes period specified by `-s` and `-e` parameters (inclusive)
@@ -76,9 +82,9 @@ Build:
 ```
 git clone https://github.com/kvr000/zbynek-gps.git
 cd zbynek-gps/
-mvn -f zbynek-gps-util/ package
+mvn -f zbynek-gps-tool/ package
 
-./zbynek-gps-util/target/zbynek-gps-util -h
+./zbynek-gps-tool/target/zbynek-gps-tool -h
 ```
 
 
