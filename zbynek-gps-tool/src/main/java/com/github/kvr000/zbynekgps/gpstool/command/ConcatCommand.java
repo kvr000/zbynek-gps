@@ -36,7 +36,7 @@ public class ConcatCommand extends AbstractCommand
 {
 	private final ZbynekGpsTool.Options mainOptions;
 
-	private Options options;
+	private Options options = new Options();
 
 	@Override
 	protected int parseNonOptions(CommandContext context, ListIterator<String> args) throws Exception
@@ -97,7 +97,7 @@ public class ConcatCommand extends AbstractCommand
 			SEGMENT: for (int i = 0; i < current.getSegments().size(); ++i) {
 				TrackSegment segment = current.getSegments().get(i);
 				Instant start = segment.points()
-					.filter(p -> p.getTime().isPresent())
+					.filter((WayPoint p) -> p.getTime().isPresent())
 					.findFirst()
 					.flatMap(WayPoint::getTime)
 					.orElse(null);
@@ -205,7 +205,7 @@ public class ConcatCommand extends AbstractCommand
 	protected Map<String, String> configParametersDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
-			"source", "file to retrack"
+			"source", "files to retrack"
 		);
 	}
 

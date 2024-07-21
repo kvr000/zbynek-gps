@@ -10,7 +10,7 @@ import java.time.temporal.ChronoUnit;
 /**
  * Gps calculation utilities.
  */
-public class GpxCalculation
+public class GpsCalculation
 {
 	/**
 	 * Calculates middle point between the start and end point, based on the time.  Longitude and latitude are
@@ -61,7 +61,7 @@ public class GpxCalculation
 	 * Normalizes the longitude, so it's in interval -180 to +180 (closed-open).
 	 *
 	 * @param lng
-	 * 	original longitude, in range of -480 to +480 (closed-open).
+	 * 	original longitude, in range of -540 to +540 (closed-open).
 	 *
 	 * @return
 	 * 	normalized longitude in interval -180 to +180 (closed-open).

@@ -1,6 +1,7 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
 import io.jenetics.jpx.GPX;
 import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
@@ -18,7 +19,7 @@ import static org.testng.Assert.assertEquals;
 
 public class RetrackCommandTest
 {
-	RetrackCommand retrackCommand = new RetrackCommand(new ZbynekGpsTool.Options());
+	RetrackCommand retrackCommand = new RetrackCommand(new GpxFiles(), new ZbynekGpsTool.Options());
 
 	@BeforeMethod
 	public void setup()

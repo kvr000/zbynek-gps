@@ -60,6 +60,10 @@ public class ZbynekGpsTool extends AbstractParentCommand
 			options.output = needArgsParam(options.output, args);
 			return true;
 
+		case "--debug":
+			options.debug = true;
+			return true;
+
 		default:
 			return super.parseOption(context, arg, args);
 		}
@@ -81,7 +85,8 @@ public class ZbynekGpsTool extends AbstractParentCommand
 	protected Map<String, String> configOptionsDescription(CommandContext context)
 	{
 		return ImmutableMap.of(
-			"-o output", "output filename"
+			"-o output", "output filename",
+			"--debug", "enables debug mode and dumps temporary data"
 		);
 	}
 
@@ -110,6 +115,8 @@ public class ZbynekGpsTool extends AbstractParentCommand
 	public static class Options
 	{
 		String output;
+
+		boolean debug;
 	}
 
 	public static class GuiceModule extends AbstractModule

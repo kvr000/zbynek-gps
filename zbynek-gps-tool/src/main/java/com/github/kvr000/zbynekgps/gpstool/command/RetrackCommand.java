@@ -1,7 +1,8 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
-import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxCalculation;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpsCalculation;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
 import com.github.kvr000.zbynekgps.gpstool.util.TreeIterators;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
@@ -42,6 +44,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class RetrackCommand extends AbstractCommand
 {
+	final GpxFiles gpxFiles;
+
 	final ZbynekGpsTool.Options mainOptions;
 
 	Options options;
@@ -145,9 +149,18 @@ public class RetrackCommand extends AbstractCommand
 		log.info("Read input files in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		List<NavigableMap<Instant, PointSource>> pointData = buildPointData(gpxs);
 		PointSources pointSources = buildPointSources(pointData);
+
+		if (mainOptions.isDebug()) {
+			GPX.write(
+				gpxFiles.buildGpx(toWayPoints(pointSources.positions.values())),
+				Paths.get(mainOptions.getOutput() + ".debug.gpx")
+			);
+		}
+
 		watch.reset(); watch.start();
 		GPX output = enrichLocations(gpxs.get(0), pointSources);
 		log.info("Retracked locations in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
+
 		watch.reset(); watch.start();
 		GPX.write(output, Paths.get(mainOptions.getOutput()));
 		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
@@ -175,7 +188,7 @@ public class RetrackCommand extends AbstractCommand
 	{
 		return ImmutableMap.of(
 			"main-file", "main source file",
-			"source-files...", "additional files to use as source, the first"
+			"source-files...", "additional files to use as source, the first priority is main-file"
 		);
 	}
 
@@ -225,7 +238,7 @@ public class RetrackCommand extends AbstractCommand
 			WayPoint o = Optional.ofNullable(pointSources.getPositions().floorEntry(time)).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
 			WayPoint n = Optional.ofNullable(pointSources.getPositions().ceilingEntry(p.getTime().get())).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
 			if (o != null && n != null) {
-				Point m = GpxCalculation.calculateMidpoint(o, n, time);
+				Point m = GpsCalculation.calculateMidpoint(o, n, time);
 				b
 					.lon(m.getLongitude())
 					.lat(m.getLatitude());
@@ -239,7 +252,7 @@ public class RetrackCommand extends AbstractCommand
 			WayPoint o = Optional.ofNullable(pointSources.getElevations().floorEntry(time)).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
 			WayPoint n = Optional.ofNullable(pointSources.getElevations().ceilingEntry(p.getTime().get())).map(Map.Entry::getValue).map(PointSource::getPoint).orElse(null);
 			if (o != null && n != null) {
-				Point m = GpxCalculation.calculateMidpoint(o, n, time);
+				Point m = GpsCalculation.calculateMidpoint(o, n, time);
 				b
 					.ele(m.getElevation().orElse(null));
 			}
@@ -262,9 +275,18 @@ public class RetrackCommand extends AbstractCommand
 			.build();
 	}
 
+	/**
+	 * Builds Map<Instant, PointSource> from sources, filtering out points without updated position.
+	 *
+	 * @param sources
+	 *      list of GPX sources
+	 *
+	 * @return
+	 *      sources mapped into Map<Instant, PointSource> only with points with valid position.
+	 */
 	List<NavigableMap<Instant, PointSource>> buildPointData(List<GPX> sources)
 	{
-		List<NavigableMap<Instant, WayPoint>> sourcesPoints = sources.parallelStream()
+		List<NavigableMap<Instant, WayPoint>> sourcesPoints = sources.stream()
 			.map(source -> source.tracks()
 				.flatMap(track -> track.segments())
 				.flatMap(segment -> segment.points())
@@ -293,22 +315,34 @@ public class RetrackCommand extends AbstractCommand
 		return result;
 	}
 
-	@Value
-	@Builder
+	public static List<WayPoint> toWayPoints(Collection<PointSource> pointSources)
+	{
+		return pointSources.stream()
+			.map(ps -> ps.point)
+			.toList();
+	}
+
+	                                         @Value
+	                                         @Builder
 	public static class PointSources
 	{
+		/** Positions combined from all sources */
 		private final NavigableMap<Instant, PointSource> positions;
 
+		/** Elevations combined from all sources */
 		private final NavigableMap<Instant, PointSource> elevations;
 	}
 
 	@Value
 	public static class PointSource
 	{
+		/** The particular point */
 		private final WayPoint point;
 
+		/** Id of source data */
 		private final int sourceId;
 
+		/** Full original Map of points of this source */
 		private final NavigableMap<Instant, WayPoint> source;
 	}
 

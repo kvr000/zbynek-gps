@@ -13,12 +13,12 @@ import java.util.Optional;
 import static org.testng.Assert.assertEquals;
 
 
-public class GpxCalculationTest
+public class GpsCalculationTest
 {
 	@Test
 	public void normalizeLng_normal_untouched()
 	{
-		double result = GpxCalculation.normalizeLng(0);
+		double result = GpsCalculation.normalizeLng(0);
 
 		assertEquals(result, 0.0);
 	}
@@ -26,7 +26,7 @@ public class GpxCalculationTest
 	@Test
 	public void normalizeLng_high_decreased()
 	{
-		double result = GpxCalculation.normalizeLng(180);
+		double result = GpsCalculation.normalizeLng(180);
 
 		assertEquals(result, -180);
 	}
@@ -34,7 +34,7 @@ public class GpxCalculationTest
 	@Test
 	public void normalizeLng_low_increased()
 	{
-		double result = GpxCalculation.normalizeLng(-190);
+		double result = GpsCalculation.normalizeLng(-190);
 
 		assertEquals(result, 170);
 	}
@@ -42,7 +42,7 @@ public class GpxCalculationTest
 	@Test
 	public void calculateMidPoint_positive_middle()
 	{
-		Point result = GpxCalculation.calculateMidpoint(
+		Point result = GpsCalculation.calculateMidpoint(
 			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
 				.lon(10)
@@ -67,7 +67,7 @@ public class GpxCalculationTest
 	@Test
 	public void calculateMidPoint_negative_middle()
 	{
-		Point result = GpxCalculation.calculateMidpoint(
+		Point result = GpsCalculation.calculateMidpoint(
 			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
 				.lon(30)
@@ -92,7 +92,7 @@ public class GpxCalculationTest
 	@Test
 	public void calculateMidPoint_pacific_middle()
 	{
-		Point result = GpxCalculation.calculateMidpoint(
+		Point result = GpsCalculation.calculateMidpoint(
 			WayPoint.builder()
 				.time(Instant.ofEpochSecond(0))
 				.lon(170)
