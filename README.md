@@ -57,6 +57,15 @@ The command removes period specified by `-s` and `-e` parameters (inclusive)
 from the given gpx file and write it to the same file.
 
 
+## fit-to-gps
+
+```
+Usage: zbynek-gps-tool fit-to-gpx source
+```
+
+The command converts FIT file to GPX file.
+
+
 ## Build
 
 You need to install:

@@ -27,9 +27,11 @@
 
 		<jackson.version>2.13.2</jackson.version>
 
+		<dryuf-base.version>1.8.2</dryuf-base.version>
 		<dryuf-cmdline.version>1.0.1</dryuf-cmdline.version>
 
 		<jpx.version>3.0.1</jpx.version>
+		<garmin-fit.version>21.141.0</garmin-fit.version>
 
 	</properties>
 
@@ -160,6 +162,11 @@
 
 		<dependency>
 			<groupId>net.dryuf</groupId>
+			<artifactId>dryuf-base</artifactId>
+			<version>${dryuf-base.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.dryuf</groupId>
 			<artifactId>dryuf-cmdline</artifactId>
 			<version>${dryuf-cmdline.version}</version>
 		</dependency>
@@ -168,6 +175,11 @@
 			<groupId>io.jenetics</groupId>
 			<artifactId>jpx</artifactId>
 			<version>${jpx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.garmin</groupId>
+			<artifactId>fit</artifactId>
+			<version>${garmin-fit.version}</version> <!-- Update this to the latest version -->
 		</dependency>
 
 	</dependencies>
