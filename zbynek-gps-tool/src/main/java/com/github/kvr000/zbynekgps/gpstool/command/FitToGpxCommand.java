@@ -23,9 +23,13 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
+import net.dryuf.base.concurrent.executor.CloseableExecutor;
+import net.dryuf.base.concurrent.executor.ClosingExecutor;
+import net.dryuf.base.concurrent.executor.CommonPoolExecutor;
 import net.dryuf.base.function.ThrowingCallable;
 import net.dryuf.cmdline.command.AbstractCommand;
 import net.dryuf.cmdline.command.CommandContext;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -35,6 +39,7 @@ import javax.inject.Inject;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.lang.ref.Reference;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -43,6 +48,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -62,6 +69,19 @@ public class FitToGpxCommand extends AbstractCommand
 	private Options options = new Options();
 
 	@Override
+	protected boolean parseOption(CommandContext context, String arg, ListIterator<String> args) throws Exception
+	{
+		switch (arg) {
+		case "--batch":
+			options.batch = true;
+			return true;
+
+		default:
+			return super.parseOption(context, arg, args);
+		}
+	}
+
+	@Override
 	protected int parseNonOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
 		ImmutableList<String> remaining = ImmutableList.copyOf(args);
@@ -75,8 +95,8 @@ public class FitToGpxCommand extends AbstractCommand
 	@Override
 	protected int validateOptions(CommandContext context, ListIterator<String> args) throws Exception
 	{
-		if (mainOptions.getOutput() == null) {
-			return usage(context, "-o output option is mandatory");
+		if (options.batch == (mainOptions.getOutput() != null)) {
+			return usage(context, "-o output option or --batch option must be provided but not both");
 		}
 		if (options.inputs == null) {
 			return usage(context, "input files required");
@@ -87,103 +107,138 @@ public class FitToGpxCommand extends AbstractCommand
 	@Override
 	public int execute() throws Exception
 	{
+		List<CompletableFuture<Void>> futures = new ArrayList<>();
+		try (CloseableExecutor executor = new CommonPoolExecutor()) {
+			for (String input : options.inputs) {
+				String output;
+				if (options.batch) {
+					if (input.endsWith(".fit")) {
+						output = input.substring(0, input.length() - 4) + ".gpx";
+					} else {
+						throw new IOException("File does end with .fit extension: " + input);
+					}
+				} else {
+					output = mainOptions.getOutput();
+				}
+				futures.add(executor.submit(() -> {
+					processFile(output, input);
+					return null;
+				}));
+			}
+		}
+		int ret = EXIT_SUCCESS;
+		for (CompletableFuture<Void> future: futures) {
+			try {
+				future.join();
+			}
+			catch (CompletionException ex) {
+				System.err.print("Failed to process: " + ex.getMessage() + ex);
+				ret = EXIT_FAILURE;
+			}
+		}
+		return ret;
+	}
+
+	private void processFile(String outputName, String inputName) throws IOException
+	{
 		Metadata.Builder metadata = Metadata.builder();
 		GPX.Builder output = GPX.builder();
 		output.version(GPX.Version.V11);
 
 		List<Track> tracks = new ArrayList<>();
 
-		for (String input: options.inputs) {
-			Track.Builder track = Track.builder();
-			List<WayPoint> wayPoints = new ArrayList<>();
+		Track.Builder track = Track.builder();
+		List<WayPoint> wayPoints = new ArrayList<>();
 
-			MutableDouble lastLon = new MutableDouble(Double.NaN);
-			MutableDouble lastLat = new MutableDouble(Double.NaN);
+		MutableDouble lastLon = new MutableDouble(Double.NaN);
+		MutableDouble lastLat = new MutableDouble(Double.NaN);
 
-			Runnable flush = () -> {
-				if (wayPoints.isEmpty()) {
+		Runnable flush = () -> {
+			if (wayPoints.isEmpty()) {
+				return;
+			}
+			track.segments(List.of(TrackSegment.builder().points(wayPoints).build()));
+			tracks.add(track.build());
+			wayPoints.clear();
+
+		};
+		Stopwatch watch = Stopwatch.createStarted();
+		try (FileInputStream fitFile = new FileInputStream(inputName)) {
+			Decode decode = new Decode();
+			MesgBroadcaster mesgBroadcaster = new MesgBroadcaster(decode);
+
+			mesgBroadcaster.addListener((FileIdMesgListener) (mesg) -> {
+				Optional.ofNullable(mesg.getProductName()).ifPresentOrElse(
+					output::creator,
+					() -> Optional.ofNullable(mesg.getManufacturer())
+						.flatMap(manufacturer -> Optional.ofNullable(mesg.getProduct())
+							.flatMap(product -> Optional.ofNullable(FitConstants.lookupDevice(manufacturer, product))))
+						.ifPresent(output::creator)
+				);
+				Optional.ofNullable(mesg.getTimeCreated()).ifPresent(dt -> metadata.time(dt.getDate().toInstant()));
+			});
+			mesgBroadcaster.addListener((DeviceInfoMesgListener) (mesg) -> {
+				if (mesg.getDeviceIndex() != 0) {
 					return;
 				}
-				track.segments(List.of(TrackSegment.builder().points(wayPoints).build()));
-				tracks.add(track.build());
-				wayPoints.clear();
-
-			};
-			Stopwatch watch = Stopwatch.createStarted();
-			try (FileInputStream fitFile = new FileInputStream(input)) {
-				Decode decode = new Decode();
-				MesgBroadcaster mesgBroadcaster = new MesgBroadcaster(decode);
-
-				mesgBroadcaster.addListener((FileIdMesgListener) (mesg) -> {
-					Optional.ofNullable(mesg.getProductName()).ifPresentOrElse(
-						output::creator,
-						() -> Optional.ofNullable(mesg.getManufacturer())
-							.flatMap(manufacturer -> Optional.ofNullable(mesg.getProduct())
-								.flatMap(product -> Optional.ofNullable(FitConstants.lookupDevice(manufacturer, product))))
-							.ifPresent(output::creator)
-					);
-					Optional.ofNullable(mesg.getTimeCreated()).ifPresent(dt -> metadata.time(dt.getDate().toInstant()));
+				Optional.ofNullable(mesg.getProductName()).ifPresentOrElse(
+					output::creator,
+					() -> Optional.ofNullable(mesg.getManufacturer())
+						.flatMap(manufacturer -> Optional.ofNullable(mesg.getProduct())
+							.flatMap(product -> Optional.ofNullable(FitConstants.lookupDevice(manufacturer, product))))
+						.ifPresent(output::creator)
+				);
+			});
+			mesgBroadcaster.addListener((SportMesgListener) (mesg) -> {
+				Optional.ofNullable(mesg.getSport()).map(FitConstants::lookupSport).ifPresent(sport -> {
+					track.type(sport);
 				});
-				mesgBroadcaster.addListener((DeviceInfoMesgListener) (mesg) -> {
-					if (mesg.getDeviceIndex() != 0) {
-						return;
-					}
-					Optional.ofNullable(mesg.getProductName()).ifPresentOrElse(
-						output::creator,
-						() -> Optional.ofNullable(mesg.getManufacturer())
-							.flatMap(manufacturer -> Optional.ofNullable(mesg.getProduct())
-								.flatMap(product -> Optional.ofNullable(FitConstants.lookupDevice(manufacturer, product))))
-							.ifPresent(output::creator)
-					);
-				});
-				mesgBroadcaster.addListener((SportMesgListener) (mesg) -> {
-					Optional.ofNullable(mesg.getSport()).map(FitConstants::lookupSport).ifPresent(sport -> {
-						track.type(sport);
-					});
-				});
+			});
 
-				mesgBroadcaster.addListener((LapMesgListener) (mesg) -> {
-					flush.run();
-				});
+			mesgBroadcaster.addListener((LapMesgListener) (mesg) -> {
+				flush.run();
+			});
 
-				mesgBroadcaster.addListener((RecordMesgListener) (recordMesg) -> {
-					if (recordMesg.getPositionLat() != null && recordMesg.getPositionLong() != null) {
-						lastLon.setValue(recordMesg.getPositionLong() * (180.0 / Math.pow(2, 31)));
-						lastLat.setValue(recordMesg.getPositionLat() * (180.0 / Math.pow(2, 31)));
-					}
-					if (!lastLon.isNaN() && !lastLat.isNaN()) {
-						Document extensions = docBuilder.newDocument();
-						extensions.createAttribute("xmlns:" + TRACK_POINT_EXTENSIONS_ID).setValue(TRACK_POINT_EXTENSIONS_NS);
-						extensions.appendChild(extensions.createElement("extensions"));
-						WayPoint.Builder wayPoint = WayPoint.builder()
-							.time(recordMesg.getTimestamp().getDate().toInstant())
-							.lon(lastLon.getValue())
-							.lat(lastLat.getValue());
-						Optional<Float> altitude = Optional.ofNullable(recordMesg.getAltitude());
-						altitude.ifPresent(wayPoint::ele);
-						copyExtension(extensions, null, "power", recordMesg, RecordMesg::getPower);
-						copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":hr", recordMesg, RecordMesg::getHeartRate);
-						copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":cad", recordMesg, RecordMesg::getCadence);
-						copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":speed", recordMesg, RecordMesg::getSpeed);
-						copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":atemp", recordMesg, RecordMesg::getTemperature);
-						wayPoint.extensions(extensions);
-						wayPoints.add(wayPoint.build());
-					}
-				});
+			mesgBroadcaster.addListener((RecordMesgListener) (recordMesg) -> {
+				if (recordMesg.getPositionLat() != null && recordMesg.getPositionLong() != null) {
+					lastLon.setValue(recordMesg.getPositionLong() * (180.0 / Math.pow(2, 31)));
+					lastLat.setValue(recordMesg.getPositionLat() * (180.0 / Math.pow(2, 31)));
+				}
+				if (!lastLon.isNaN() && !lastLat.isNaN()) {
+					Document extensions = docBuilder.newDocument();
+					extensions.createAttribute("xmlns:" + TRACK_POINT_EXTENSIONS_ID).setValue(TRACK_POINT_EXTENSIONS_NS);
+					extensions.appendChild(extensions.createElement("extensions"));
+					WayPoint.Builder wayPoint = WayPoint.builder()
+						.time(recordMesg.getTimestamp().getDate().toInstant())
+						.lon(lastLon.getValue())
+						.lat(lastLat.getValue());
+					Optional<Float> altitude = Optional.ofNullable(recordMesg.getAltitude());
+					altitude.ifPresent(wayPoint::ele);
+					copyExtension(extensions, null, "power", recordMesg, RecordMesg::getPower);
+					copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":hr", recordMesg, RecordMesg::getHeartRate);
+					copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":cad", recordMesg, RecordMesg::getCadence);
+					copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":speed", recordMesg, RecordMesg::getSpeed);
+					copyExtension(extensions, TRACK_POINT_EXTENSIONS_EL, TRACK_POINT_EXTENSIONS_ID + ":atemp", recordMesg, RecordMesg::getTemperature);
+					wayPoint.extensions(extensions);
+					wayPoints.add(wayPoint.build());
+				}
+			});
 
-				decode.read(fitFile, mesgBroadcaster);
-			}
+			decode.read(fitFile, mesgBroadcaster);
+
 			flush.run();
-			log.info("Process file: file={} time={} ms", input, watch.elapsed(TimeUnit.MILLISECONDS));
-		}
-		output
-			.metadata(metadata.build())
-			.tracks(tracks);
+			log.info("Process file: file={} time={} ms", inputName, watch.elapsed(TimeUnit.MILLISECONDS));
+			output
+				.metadata(metadata.build())
+				.tracks(tracks);
 
-		Stopwatch watch = Stopwatch.createStarted();
-		GPX.write(output.build(), Paths.get(mainOptions.getOutput()));
-		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
-		return EXIT_SUCCESS;
+			Stopwatch watchWrite = Stopwatch.createStarted();
+			GPX.write(output.build(), Paths.get(outputName));
+			log.info("Written output: file={} time={} ms", outputName, watchWrite.elapsed(TimeUnit.MILLISECONDS));
+		}
+		catch (Exception ex) {
+			throw new IOException("Failed to process file: file=" + inputName + " : " + ex.getMessage(), ex);
+		}
 	}
 
 	private static void copyExtension(Document extensions, String sub, String name, RecordMesg mesg, Function<RecordMesg, Object> extractor)
@@ -235,6 +290,8 @@ public class FitToGpxCommand extends AbstractCommand
 
 	public static class Options
 	{
+		private boolean batch;
+
 		private List<String> inputs;
 	}
 

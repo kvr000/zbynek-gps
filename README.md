@@ -60,10 +60,11 @@ from the given gpx file and write it to the same file.
 ## fit-to-gps
 
 ```
-Usage: zbynek-gps-tool fit-to-gpx source
+Usage: zbynek-gps-tool -o output fit-to-gpx source
+Usage: zbynek-gps-tool fit-to-gpx --batch sources...
 ```
 
-The command converts FIT file to GPX file.
+The command converts FIT files to GPX files.
 
 
 ## Build
