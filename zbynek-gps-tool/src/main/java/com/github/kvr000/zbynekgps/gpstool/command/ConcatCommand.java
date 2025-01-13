@@ -1,6 +1,7 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -34,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class ConcatCommand extends AbstractCommand
 {
+	private final GpxFiles gpxFiles;
+
 	private final ZbynekGpsTool.Options mainOptions;
 
 	private Options options = new Options();
@@ -69,7 +72,7 @@ public class ConcatCommand extends AbstractCommand
 		NavigableMap<Instant, TrackDetail> tracks = new TreeMap<>(); // end : segment
 		for (String input: options.inputs) {
 			Stopwatch watch = Stopwatch.createStarted();
-			GPX file = GPX.read(Paths.get(input));
+			GPX file = gpxFiles.readGpxDecompressed(Paths.get(input));
 			if (output == null) {
 				output = file.toBuilder();
 			}

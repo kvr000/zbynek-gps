@@ -139,7 +139,7 @@ public class RetrackCommand extends AbstractCommand
 		List<GPX> gpxs = options.inputs.parallelStream()
 			.map(name -> {
 				try {
-					return GPX.read(Paths.get(name));
+					return gpxFiles.readGpxDecompressed(Paths.get(name));
 				}
 				catch (IOException e) {
 					throw new UncheckedIOException(e);
