@@ -57,11 +57,29 @@ The command removes period specified by `-s` and `-e` parameters (inclusive)
 from the given gpx file and write it to the same file.
 
 
+## find
+
+```
+zbynek-gps-tool find --source-strava-csv activities.csv --since 2022-01-01T00:00:00Z --find-point -123.004850,49.233800,50 --group-found-time HH:mm
+```
+
+Finds specific point (within radius) in set of files and prints the files and time or groups by time.
+
+### Options:
+- `--source-dir directory` : read files from the directory
+- `--source-strava-csv file` : read files from Strava activities.csv
+- `--since time` : filters by activity start time (yyyy-MM-ddTHH:mm:ssZ)
+- `--find-point lon,lat,radius` : find point with radius distance
+- `--print-id-and-found-time time-format` : prints id and found local time
+- `--group-found-time time-format` : groups and prints found time
+- `--remove-privacy-zone lon,lat,radius` : removes privacy zone from output
+
+
 ## fit-to-gps
 
 ```
-Usage: zbynek-gps-tool -o output fit-to-gpx source
-Usage: zbynek-gps-tool fit-to-gpx --batch sources...
+zbynek-gps-tool -o output fit-to-gpx source
+zbynek-gps-tool fit-to-gpx --batch sources...
 ```
 
 The command converts FIT files to GPX files.

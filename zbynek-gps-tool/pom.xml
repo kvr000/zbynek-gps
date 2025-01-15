@@ -23,7 +23,8 @@
 		<guava.version>31.1-jre</guava.version>
 
 		<commons-lang3.version>3.4</commons-lang3.version>
-		<commons-io.version>2.11.0</commons-io.version>
+		<commons-io.version>2.18.0</commons-io.version>
+		<commons-csv.version>1.13.0</commons-csv.version>
 
 		<jackson.version>2.13.2</jackson.version>
 
@@ -152,6 +153,11 @@
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>${commons-csv.version}</version>
 		</dependency>
 
 		<dependency>
