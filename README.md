@@ -68,8 +68,9 @@ Finds specific point (within radius) in set of files and prints the files and ti
 ### Options:
 - `--source-dir directory` : read files from the directory
 - `--source-strava-csv file` : read files from Strava activities.csv
-- `--since time` : filters by activity start time (yyyy-MM-ddTHH:mm:ssZ)
-- `--find-point lon,lat,radius` : find point with radius distance
+- `--since time` : filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)
+- `--till time` : filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)
+- `--find-point lon,lat,radius:...` : find one of the points with radius distance
 - `--print-id-and-found-time time-format` : prints id and found local time
 - `--group-found-time time-format` : groups and prints found time
 - `--remove-privacy-zone lon,lat,radius` : removes privacy zone from output

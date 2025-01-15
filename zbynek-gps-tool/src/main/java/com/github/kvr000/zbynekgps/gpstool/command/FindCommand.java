@@ -76,13 +76,22 @@ public class FindCommand extends AbstractCommand
 			options.filters.add(new SinceFilter(since));
 			return true;
 
+		case "--till":
+			Instant till = Instant.parse(needArgsParam(null, args));
+			options.filters.add(new TillFilter(till));
+			return true;
+
 		case "--find-point":
-			String[] findPointDefStr = needArgsParam(null, args).split(",");
-			if (findPointDefStr.length != 3) {
-				throw new IllegalArgumentException("--find-point requires argument lon,lat,radius");
-			}
-			double[] findPointDef = Stream.of(findPointDefStr).mapToDouble(Double::parseDouble).toArray();
-			options.filters.add(new FindPointFilter(findPointDef));
+			double[][] findPointDefs = Stream.of(needArgsParam(null, args).split(":"))
+					.map(one -> {
+						String[] findPointDefStr = one.split(",");
+						if (findPointDefStr.length != 3) {
+							throw new IllegalArgumentException("--find-point requires arguments lon,lat,radius , possibly multiple separated by :, got: " + one);
+						}
+						return Stream.of(findPointDefStr).mapToDouble(Double::parseDouble).toArray();
+					})
+					.toArray(double[][]::new);
+			options.filters.add(new FindPointFilter(findPointDefs));
 			return true;
 
 		case "--remove-privacy-zone":
@@ -131,8 +140,9 @@ public class FindCommand extends AbstractCommand
 		return ImmutableMap.of(
 				"--source-dir directory", "read files from the directory",
 				"--source-strava-csv file", "read files from Strava activities.csv file",
-				"--since time", "filters by activity start time (YYYY-MM-DDTHH:mm:ssZ)",
-				"--find-point lon,lat,radius", "find point with radius distance",
+				"--since time", "filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)",
+				"--till time", "filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)",
+				"--find-point lon,lat,radius:...", "find one of the points with radius distance",
 				"--print-id-and-found-time time-format", "prints id and found local time",
 				"--group-found-time time-format", "groups and prints found time",
 				"--remove-privacy-zone lon,lat,radius", "removes privacy zone from output"
@@ -259,9 +269,30 @@ public class FindCommand extends AbstractCommand
 	}
 
 	@RequiredArgsConstructor
+	public static class TillFilter implements BiPredicate<FileData, GPX>
+	{
+		final Instant till;
+
+		@Override
+		public boolean test(FileData fileData, GPX gpx)
+		{
+			List<WayPoint> waypoints = gpx.tracks()
+					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
+					.toList();
+
+			for (WayPoint waypoint : waypoints) {
+				if (waypoint.getTime().isPresent()) {
+					return waypoint.getTime().get().isBefore(till);
+				}
+			}
+			return false;
+		}
+	}
+
+	@RequiredArgsConstructor
 	public static class FindPointFilter implements BiPredicate<FileData, GPX>
 	{
-		final double[] searchPoint;
+		final double[][] searchPoints;
 
 		@Override
 		public boolean test(FileData fileData, GPX gpx)
@@ -277,9 +308,11 @@ public class FindCommand extends AbstractCommand
 					double latitude = waypoint.getLatitude().doubleValue();
 					double longitude = waypoint.getLongitude().doubleValue();
 
-					if (GeoCalc.isWithinRadius(longitude, latitude, searchPoint[0], searchPoint[1], searchPoint[2])) {
-						fileData.attributes.put("foundPointLdt", timestamp);
-						return true;
+					for (double[] point: searchPoints) {
+						if (GeoCalc.isWithinRadius(longitude, latitude, point[0], point[1], point[2])) {
+							fileData.attributes.put("foundPointLdt", timestamp);
+							return true;
+						}
 					}
 				}
 			}
