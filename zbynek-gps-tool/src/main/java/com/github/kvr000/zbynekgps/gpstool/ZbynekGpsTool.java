@@ -111,7 +111,7 @@ public class ZbynekGpsTool extends AbstractParentCommand
 			"concat", "Concatenates multiple files into single one",
 			"cut", "Cuts the period from track",
 			"retrack", "Recalculates location for time when the device did not have GPS signal",
-				"find", "Finds locations in set of files",
+			"find", "Finds locations in set of files",
 			"fit-to-gpx", "Converts fit file to gpx",
 			"help [command]", "Prints help"
 		);

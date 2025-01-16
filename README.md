@@ -73,6 +73,7 @@ Finds specific point (within radius) in set of files and prints the files and ti
 - `--find-point lon,lat,radius:...` : find one of the points with radius distance
 - `--print-id-and-found-time time-format` : prints id and found local time
 - `--group-found-time time-format` : groups and prints found time
+- `--export-gpx directory` : exports found files to directory/id.gpx files
 - `--remove-privacy-zone lon,lat,radius` : removes privacy zone from output
 
 
