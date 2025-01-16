@@ -7,6 +7,8 @@ import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import io.jenetics.jpx.GPX;
+import io.jenetics.jpx.Track;
+import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -17,6 +19,8 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -24,6 +28,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -100,9 +105,13 @@ public class FindCommand extends AbstractCommand
 				throw new IllegalArgumentException("--exclude-privacy-zone requires argument lon,lat,radius");
 			}
 			double[] zoneDef = Stream.of(zoneStr).mapToDouble(Double::parseDouble).toArray();
-			throw new UnsupportedOperationException("TODO");
-			//options.filters.add(new RemovePrivacyZoneFilter(zoneDef));
-			//return true;
+			options.filters.add(new RemovePrivacyZoneFilter(zoneDef));
+			return true;
+
+		case "--export-gpx":
+			Path directory = Paths.get(needArgsParam(null, args));
+			options.commands.add(new ExportGpxCommand(directory));
+			return true;
 
 		case "--print-id-and-found-time":
 			DateTimeFormatter idFoundTime = DateTimeFormatter.ofPattern(needArgsParam(null, args));
@@ -145,6 +154,7 @@ public class FindCommand extends AbstractCommand
 				"--find-point lon,lat,radius:...", "find one of the points with radius distance",
 				"--print-id-and-found-time time-format", "prints id and found local time",
 				"--group-found-time time-format", "groups and prints found time",
+				"--export-gpx directory", "exports found files to directory/id.gpx files",
 				"--remove-privacy-zone lon,lat,radius", "removes privacy zone from output"
 		);
 	}
@@ -190,11 +200,11 @@ public class FindCommand extends AbstractCommand
 		}
 
 		AtomicLong count = new AtomicLong();
-		inputs.values().parallelStream()
+		long found = inputs.values().parallelStream()
 				.peek(fileData -> count.incrementAndGet())
 				.map(fileData -> {
 					try {
-						return Map.entry(fileData, readGpxLike(fileData.filename));
+						return Map.entry(fileData, new MutableObject<>(readGpxLike(fileData.filename)));
 					} catch (IOException ex) {
 						log.error("Failed to read file: file={}", fileData.filename, ex);
 						return null;
@@ -205,11 +215,12 @@ public class FindCommand extends AbstractCommand
 						.map(filter -> filter.test(e.getKey(), e.getValue()))
 						.reduce(true, Boolean::logicalAnd)
 				)
-				.peek(e -> options.commands.forEach(command -> command.collectUnordered(e.getKey(), e.getValue())))
+				.peek(e -> options.commands.forEach(command -> command.collectUnordered(e.getKey(), e.getValue().getValue())))
 				.map(Map.Entry::getKey)
-				.forEachOrdered(fileData -> options.commands.forEach(command -> command.collectOrdered(fileData)));
+				.peek(fileData -> options.commands.forEach(command -> command.collectOrdered(fileData)))
+				.count();
 
-		log.info("Analyzed files in: count={} time={} ms", count, watch.elapsed(TimeUnit.MILLISECONDS));
+		log.info("Analyzed files in: count={} found={} time={} ms", count, found, watch.elapsed(TimeUnit.MILLISECONDS));
 
 		options.commands.forEach(Command::finish);
 
@@ -248,14 +259,14 @@ public class FindCommand extends AbstractCommand
 
 
 	@RequiredArgsConstructor
-	public static class SinceFilter implements BiPredicate<FileData, GPX>
+	public static class SinceFilter implements BiPredicate<FileData, Mutable<GPX>>
 	{
 		final Instant since;
 
 		@Override
-		public boolean test(FileData fileData, GPX gpx)
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
 		{
-			List<WayPoint> waypoints = gpx.tracks()
+			List<WayPoint> waypoints = gpx.getValue().tracks()
 					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
 					.toList();
 
@@ -269,14 +280,14 @@ public class FindCommand extends AbstractCommand
 	}
 
 	@RequiredArgsConstructor
-	public static class TillFilter implements BiPredicate<FileData, GPX>
+	public static class TillFilter implements BiPredicate<FileData, Mutable<GPX>>
 	{
 		final Instant till;
 
 		@Override
-		public boolean test(FileData fileData, GPX gpx)
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
 		{
-			List<WayPoint> waypoints = gpx.tracks()
+			List<WayPoint> waypoints = gpx.getValue().tracks()
 					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
 					.toList();
 
@@ -290,14 +301,14 @@ public class FindCommand extends AbstractCommand
 	}
 
 	@RequiredArgsConstructor
-	public static class FindPointFilter implements BiPredicate<FileData, GPX>
+	public static class FindPointFilter implements BiPredicate<FileData, Mutable<GPX>>
 	{
 		final double[][] searchPoints;
 
 		@Override
-		public boolean test(FileData fileData, GPX gpx)
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
 		{
-			List<WayPoint> waypoints = gpx.tracks()
+			List<WayPoint> waypoints = gpx.getValue().tracks()
 					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
 					.toList();
 
@@ -317,6 +328,81 @@ public class FindCommand extends AbstractCommand
 				}
 			}
 			return false;
+		}
+	}
+
+	@RequiredArgsConstructor
+	public static class RemovePrivacyZoneFilter implements BiPredicate<FileData, Mutable<GPX>>
+	{
+		final double[] privacyZone;
+
+		@Override
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
+		{
+			GPX.Builder gpxBuilder = gpx.getValue().toBuilder();
+			{
+				boolean started = false;
+				List<Track> tracks = new ArrayList<>();
+				for (Track track : gpxBuilder.tracks()) {
+					List<TrackSegment> segments = new ArrayList<>();
+					for (TrackSegment segment : track.getSegments()) {
+						List<WayPoint> wayPoints = new ArrayList<>();
+						for (WayPoint wayPoint : segment.getPoints()) {
+							if (!started) {
+								double latitude = wayPoint.getLatitude().doubleValue();
+								double longitude = wayPoint.getLongitude().doubleValue();
+								if (GeoCalc.isWithinRadius(longitude, latitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
+									continue;
+								}
+								else {
+									started = true;
+								}
+							}
+							wayPoints.add(wayPoint);
+						}
+						if (!wayPoints.isEmpty()) {
+							segments.add(segment.toBuilder().points(wayPoints).build());
+						}
+					}
+					if (!segments.isEmpty()) {
+						tracks.add(track.toBuilder().segments(segments).build());
+					}
+				}
+				gpxBuilder.tracks(tracks);
+			}
+			{
+				boolean started = false;
+				List<Track> tracks = new ArrayList<>();
+				tracks.clear();
+				for (Track track : gpxBuilder.tracks().reversed()) {
+					List<TrackSegment> segments = new ArrayList<>();
+					for (TrackSegment segment : track.getSegments().reversed()) {
+						List<WayPoint> wayPoints = new ArrayList<>();
+						for (WayPoint wayPoint : segment.getPoints().reversed()) {
+							if (!started) {
+								double latitude = wayPoint.getLatitude().doubleValue();
+								double longitude = wayPoint.getLongitude().doubleValue();
+								if (GeoCalc.isWithinRadius(longitude, latitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
+									continue;
+								}
+								else {
+									started = true;
+								}
+							}
+							wayPoints.add(wayPoint);
+						}
+						if (!wayPoints.isEmpty()) {
+							segments.add(segment.toBuilder().points(wayPoints.reversed()).build());
+						}
+					}
+					if (!segments.isEmpty()) {
+						tracks.add(track.toBuilder().segments(segments.reversed()).build());
+					}
+				}
+				gpxBuilder.tracks(tracks.reversed());
+			}
+			gpx.setValue(gpxBuilder.build());
+			return !gpx.getValue().getTracks().isEmpty();
 		}
 	}
 
@@ -389,6 +475,24 @@ public class FindCommand extends AbstractCommand
 		}
 	}
 
+	@RequiredArgsConstructor
+	public class ExportGpxCommand extends Command
+	{
+		final Path directory;
+
+		@Override
+		public void collectUnordered(FileData fileData, GPX gpx)
+		{
+			Path output = directory.resolve(fileData.id + ".gpx");
+			try {
+				gpxFiles.writeGpx(output, gpx);
+			}
+			catch (IOException ex) {
+				throw new UncheckedIOException(ex);
+			}
+		}
+	}
+
 	public static class FileData
 	{
 		String id;
@@ -406,7 +510,7 @@ public class FindCommand extends AbstractCommand
 
 		String sourceStravaCsv;
 
-		List<BiPredicate<FileData, GPX>> filters = new ArrayList<>();
+		List<BiPredicate<FileData, Mutable<GPX>>> filters = new ArrayList<>();
 
 		List<Command> commands = new ArrayList<>();
 	}

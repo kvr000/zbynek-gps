@@ -32,6 +32,11 @@ public class GpxFiles
 		}
 	}
 
+	public void writeGpx(Path output, GPX gpx) throws IOException
+	{
+		GPX.write(gpx, output);
+	}
+
 	public GPX buildGpx(List<WayPoint> points)
 	{
 		return GPX.builder()
