@@ -91,7 +91,7 @@ public class FindCommand extends AbstractCommand
 					.map(one -> {
 						String[] findPointDefStr = one.split(",");
 						if (findPointDefStr.length != 3) {
-							throw new IllegalArgumentException("--find-point requires arguments lon,lat,radius , possibly multiple separated by :, got: " + one);
+							throw new IllegalArgumentException("--find-point requires arguments lat,lon,radius , possibly multiple separated by :, got: " + one);
 						}
 						return Stream.of(findPointDefStr).mapToDouble(Double::parseDouble).toArray();
 					})
@@ -102,7 +102,7 @@ public class FindCommand extends AbstractCommand
 		case "--remove-privacy-zone":
 			String[] zoneStr = needArgsParam(null, args).split(",");
 			if (zoneStr.length != 3) {
-				throw new IllegalArgumentException("--exclude-privacy-zone requires argument lon,lat,radius");
+				throw new IllegalArgumentException("--exclude-privacy-zone requires argument lat,lon,radius");
 			}
 			double[] zoneDef = Stream.of(zoneStr).mapToDouble(Double::parseDouble).toArray();
 			options.filters.add(new RemovePrivacyZoneFilter(zoneDef));
@@ -151,11 +151,11 @@ public class FindCommand extends AbstractCommand
 				"--source-strava-csv file", "read files from Strava activities.csv file",
 				"--since time", "filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)",
 				"--till time", "filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)",
-				"--find-point lon,lat,radius:...", "find one of the points with radius distance",
+				"--find-point lat,lon,radius:...", "find one of the points with radius distance",
 				"--print-id-and-found-time time-format", "prints id and found local time",
 				"--group-found-time time-format", "groups and prints found time",
 				"--export-gpx directory", "exports found files to directory/id.gpx files",
-				"--remove-privacy-zone lon,lat,radius", "removes privacy zone from output"
+				"--remove-privacy-zone lat,lon,radius", "removes privacy zone from output"
 		);
 	}
 
@@ -200,7 +200,8 @@ public class FindCommand extends AbstractCommand
 		}
 
 		AtomicLong count = new AtomicLong();
-		long found = inputs.values().parallelStream()
+		AtomicLong found = new AtomicLong();
+		inputs.values().parallelStream()
 				.peek(fileData -> count.incrementAndGet())
 				.map(fileData -> {
 					try {
@@ -217,8 +218,10 @@ public class FindCommand extends AbstractCommand
 				)
 				.peek(e -> options.commands.forEach(command -> command.collectUnordered(e.getKey(), e.getValue().getValue())))
 				.map(Map.Entry::getKey)
-				.peek(fileData -> options.commands.forEach(command -> command.collectOrdered(fileData)))
-				.count();
+				.forEachOrdered(fileData -> {
+					options.commands.forEach(command -> command.collectOrdered(fileData));
+					found.incrementAndGet();
+				});
 
 		log.info("Analyzed files in: count={} found={} time={} ms", count, found, watch.elapsed(TimeUnit.MILLISECONDS));
 
@@ -249,7 +252,7 @@ public class FindCommand extends AbstractCommand
 				return fitFiles.readFitDecompressed(input);
 			}
 			else {
-				throw new IOException("Unsupported file extension, only gpx or fit are supported: " + filename);
+				throw new IOException("Unsupported file extension, only gpx or fit (optionally gzip-ped) are supported: " + filename);
 			}
 		}
 		catch (IOException ex) {
@@ -320,7 +323,7 @@ public class FindCommand extends AbstractCommand
 					double longitude = waypoint.getLongitude().doubleValue();
 
 					for (double[] point: searchPoints) {
-						if (GeoCalc.isWithinRadius(longitude, latitude, point[0], point[1], point[2])) {
+						if (GeoCalc.isWithinRadius(latitude, longitude, point[0], point[1], point[2])) {
 							fileData.attributes.put("foundPointLdt", timestamp);
 							return true;
 						}
@@ -351,7 +354,7 @@ public class FindCommand extends AbstractCommand
 							if (!started) {
 								double latitude = wayPoint.getLatitude().doubleValue();
 								double longitude = wayPoint.getLongitude().doubleValue();
-								if (GeoCalc.isWithinRadius(longitude, latitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
+								if (GeoCalc.isWithinRadius(latitude, longitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
 									continue;
 								}
 								else {
@@ -382,7 +385,7 @@ public class FindCommand extends AbstractCommand
 							if (!started) {
 								double latitude = wayPoint.getLatitude().doubleValue();
 								double longitude = wayPoint.getLongitude().doubleValue();
-								if (GeoCalc.isWithinRadius(longitude, latitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
+								if (GeoCalc.isWithinRadius(latitude, longitude, privacyZone[0], privacyZone[1], privacyZone[2])) {
 									continue;
 								}
 								else {

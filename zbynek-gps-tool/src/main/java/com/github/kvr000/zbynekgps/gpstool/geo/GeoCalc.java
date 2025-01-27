@@ -3,7 +3,7 @@ package com.github.kvr000.zbynekgps.gpstool.geo;
 
 public class GeoCalc
 {
-	public static boolean isWithinRadius(double lon1, double lat1, double lon2, double lat2, double radiusMeters)
+	public static boolean isWithinRadius(double lat1, double lon1, double lat2, double lon2, double radiusMeters)
 	{
 		final double EARTH_RADIUS = 6371000; // Radius of Earth in meters
 		double latDistance = Math.toRadians(lat2 - lat1);
