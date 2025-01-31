@@ -1,4 +1,4 @@
-package com.github.kvr000.zbynekgps.gpstool.fit;
+package com.github.kvr000.zbynekgps.gpstool.fit.io;
 
 import com.garmin.fit.Decode;
 import com.garmin.fit.DeviceInfoMesgListener;
@@ -10,6 +10,7 @@ import com.garmin.fit.RecordMesg;
 import com.garmin.fit.RecordMesgListener;
 import com.garmin.fit.SportMesgListener;
 import com.github.kvr000.zbynekgps.gpstool.compress.AutoDecompressInputStream;
+import com.github.kvr000.zbynekgps.gpstool.fit.FitConstants;
 import com.google.common.base.Stopwatch;
 import io.jenetics.jpx.GPX;
 import io.jenetics.jpx.Metadata;
@@ -93,7 +94,7 @@ public class FitFiles
 				Optional.ofNullable(mesg.getTimeCreated()).ifPresent(dt -> metadata.time(dt.getDate().toInstant()));
 			});
 			mesgBroadcaster.addListener((DeviceInfoMesgListener) (mesg) -> {
-				if (mesg.getDeviceIndex() != 0) {
+				if (mesg.getDeviceIndex() != null) {
 					return;
 				}
 				Optional.ofNullable(mesg.getProductName()).ifPresentOrElse(

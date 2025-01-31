@@ -1,8 +1,7 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
-import com.github.kvr000.zbynekgps.gpstool.compress.AutoDecompressInputStream;
-import com.github.kvr000.zbynekgps.gpstool.fit.FitFiles;
+import com.github.kvr000.zbynekgps.gpstool.fit.io.FitFiles;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

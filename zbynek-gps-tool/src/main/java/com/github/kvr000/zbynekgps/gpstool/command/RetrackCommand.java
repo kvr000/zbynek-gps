@@ -2,7 +2,8 @@ package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
 import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpsCalculation;
-import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxUtil;
+import com.github.kvr000.zbynekgps.gpstool.gpxlike.io.GpxLikeFiles;
 import com.github.kvr000.zbynekgps.gpstool.util.TreeIterators;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -44,7 +45,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class RetrackCommand extends AbstractCommand
 {
-	final GpxFiles gpxFiles;
+	final GpxLikeFiles gpxLikeFiles;
 
 	final ZbynekGpsTool.Options mainOptions;
 
@@ -139,7 +140,7 @@ public class RetrackCommand extends AbstractCommand
 		List<GPX> gpxs = options.inputs.parallelStream()
 			.map(name -> {
 				try {
-					return gpxFiles.readGpxDecompressed(Paths.get(name));
+					return gpxLikeFiles.readGpxDecompressed(Paths.get(name));
 				}
 				catch (IOException e) {
 					throw new UncheckedIOException(e);
@@ -152,7 +153,7 @@ public class RetrackCommand extends AbstractCommand
 
 		if (mainOptions.isDebug()) {
 			GPX.write(
-				gpxFiles.buildGpx(toWayPoints(pointSources.positions.values())),
+				GpxUtil.buildGpx(toWayPoints(pointSources.positions.values())),
 				Paths.get(mainOptions.getOutput() + ".debug.gpx")
 			);
 		}

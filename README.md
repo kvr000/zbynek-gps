@@ -90,7 +90,7 @@ The command converts FIT files to GPX files.
 ## Build
 
 You need to install:
-- java (at least version 11)
+- java (at least version 21)
 - maven
 
 Debian or Ubuntu:

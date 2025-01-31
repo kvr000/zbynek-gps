@@ -1,9 +1,8 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
-import com.github.kvr000.zbynekgps.gpstool.fit.FitFiles;
 import com.github.kvr000.zbynekgps.gpstool.geo.GeoCalc;
-import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
+import com.github.kvr000.zbynekgps.gpstool.gpxlike.io.GpxLikeFiles;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import io.jenetics.jpx.GPX;
@@ -17,16 +16,12 @@ import net.dryuf.cmdline.command.CommandContext;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 
 import javax.inject.Inject;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -56,9 +51,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class FindCommand extends AbstractCommand
 {
-	final GpxFiles gpxFiles;
-
-	final FitFiles fitFiles;
+	final GpxLikeFiles gpxLikeFiles;
 
 	final ZbynekGpsTool.Options mainOptions;
 
@@ -187,10 +180,10 @@ public class FindCommand extends AbstractCommand
 			}
 		}
 		else {
-			for (File filename: FileUtils.listFiles(new File(options.sourceDir), new String[]{ "gpx", "gpx.gz", "fit", "fit.gz" }, false)) {
+			for (Path filename: gpxLikeFiles.listFiles(Paths.get(options.sourceDir))) {
 				FileData fileData = new FileData();
-				fileData.filename = filename.toPath();
-				fileData.id = FilenameUtils.removeExtension(FilenameUtils.removeExtension(filename.getName()));
+				fileData.filename = filename;
+				fileData.id = FilenameUtils.removeExtension(FilenameUtils.removeExtension(filename.getFileName().toString()));
 				fileData.metadata = ImmutableMap.of(
 						"id", fileData.id,
 						"name", fileData.id
@@ -243,17 +236,8 @@ public class FindCommand extends AbstractCommand
 		if (filename.endsWith(".gz") && !Files.exists(Paths.get(filename)) && Files.exists(Paths.get(FilenameUtils.removeExtension(filename)))) {
 			filename = FilenameUtils.removeExtension(filename);
 		}
-		try (InputStream core = new FileInputStream(filename)) {
-			InputStream input = core;
-			if (filename.endsWith(".gpx") || filename.endsWith(".gpx.gz")) {
-				return gpxFiles.readGpxDecompressed(input);
-			}
-			else if (filename.endsWith(".fit") || filename.endsWith(".fit.gz")) {
-				return fitFiles.readFitDecompressed(input);
-			}
-			else {
-				throw new IOException("Unsupported file extension, only gpx or fit (optionally gzip-ped) are supported: " + filename);
-			}
+		try {
+			return gpxLikeFiles.readGpxDecompressed(Paths.get(filename));
 		}
 		catch (IOException ex) {
 			throw new IOException("Failed to read file: " + filename + " : " + ex.getMessage(), ex);
@@ -488,7 +472,7 @@ public class FindCommand extends AbstractCommand
 		{
 			Path output = directory.resolve(fileData.id + ".gpx");
 			try {
-				gpxFiles.writeGpx(output, gpx);
+				gpxLikeFiles.writeGpx(output, gpx);
 			}
 			catch (IOException ex) {
 				throw new UncheckedIOException(ex);

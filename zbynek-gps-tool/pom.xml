@@ -7,7 +7,7 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<javac.version>17</javac.version>
+		<javac.version>21</javac.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
 		<maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
@@ -31,7 +31,7 @@
 		<dryuf-base.version>1.8.2</dryuf-base.version>
 		<dryuf-cmdline.version>1.0.1</dryuf-cmdline.version>
 
-		<jpx.version>3.0.1</jpx.version>
+		<jpx.version>3.2.1</jpx.version>
 		<garmin-fit.version>21.141.0</garmin-fit.version>
 
 	</properties>

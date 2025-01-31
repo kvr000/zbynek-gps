@@ -1,8 +1,8 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
-import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxFiles;
 import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxUtil;
+import com.github.kvr000.zbynekgps.gpstool.gpxlike.io.GpxLikeFiles;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
@@ -34,7 +34,7 @@ import java.util.TreeMap;
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class CutCommand extends AbstractCommand
 {
-	private final GpxFiles gpxFiles;
+	private final GpxLikeFiles gpxLikeFiles;
 
 	private final ZbynekGpsTool.Options mainOptions;
 
@@ -79,7 +79,7 @@ public class CutCommand extends AbstractCommand
 
 		NavigableMap<Instant, TrackDetail> tracks = new TreeMap<>(); // end : segment
 
-		GPX main = gpxFiles.readGpxDecompressed(Paths.get(mainOptions.getOutput()));
+		GPX main = gpxLikeFiles.readGpxDecompressed(Paths.get(mainOptions.getOutput()));
 		output = main.toBuilder();
 		output.tracks(main.tracks()
 			.map(t -> cutTrack(t, options))

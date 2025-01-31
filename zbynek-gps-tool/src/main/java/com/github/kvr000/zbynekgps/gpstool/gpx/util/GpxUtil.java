@@ -2,10 +2,12 @@ package com.github.kvr000.zbynekgps.gpstool.gpx.util;
 
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
+import io.jenetics.jpx.GPX;
 import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
 
 import java.time.Instant;
+import java.util.List;
 
 
 public class GpxUtil
@@ -34,5 +36,12 @@ public class GpxUtil
 			.flatMap(WayPoint::getTime)
 			.get();
 		return Range.closed(start, end);
+	}
+
+	public static GPX buildGpx(List<WayPoint> points)
+	{
+		return GPX.builder()
+			.wayPoints(points)
+			.build();
 	}
 }

@@ -1,15 +1,13 @@
-package com.github.kvr000.zbynekgps.gpstool.gpx.util;
+package com.github.kvr000.zbynekgps.gpstool.gpx.io;
 
 import com.github.kvr000.zbynekgps.gpstool.compress.AutoDecompressInputStream;
 import io.jenetics.jpx.GPX;
-import io.jenetics.jpx.WayPoint;
 
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 
 @Singleton
@@ -35,12 +33,5 @@ public class GpxFiles
 	public void writeGpx(Path output, GPX gpx) throws IOException
 	{
 		GPX.write(gpx, output);
-	}
-
-	public GPX buildGpx(List<WayPoint> points)
-	{
-		return GPX.builder()
-			.wayPoints(points)
-			.build();
 	}
 }
