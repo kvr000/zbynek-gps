@@ -116,6 +116,10 @@ public class FindCommand extends AbstractCommand
 			options.commands.add(new GroupFoundTimeCommand(groupFoundTime));
 			return true;
 
+		case "--skip-distance":
+			options.skipDistance = Double.parseDouble(needArgsParam(options.skipDistance, args));
+			return true;
+
 		default:
 			return super.parseOption(context, arg, args);
 		}
@@ -148,7 +152,8 @@ public class FindCommand extends AbstractCommand
 				"--print-id-and-found-time time-format", "prints id and found local time",
 				"--group-found-time time-format", "groups and prints found time",
 				"--export-gpx directory", "exports found files to directory/id.gpx files",
-				"--remove-privacy-zone lat,lon,radius", "removes privacy zone from output"
+				"--remove-privacy-zone lat,lon,radius", "removes privacy zone from output",
+				"--skip-distance radius", "starts searching after leaving radius from start"
 		);
 	}
 
@@ -244,6 +249,12 @@ public class FindCommand extends AbstractCommand
 		}
 	}
 
+	static Optional<double[]> getFirstPoint(GPX gpx)
+	{
+		return gpx.tracks().flatMap(Track::segments).flatMap(TrackSegment::points)
+			.map(wp -> new double[]{ wp.getLatitude().doubleValue(), wp.getLongitude().doubleValue() })
+			.findFirst();
+	}
 
 	@RequiredArgsConstructor
 	public static class SinceFilter implements BiPredicate<FileData, Mutable<GPX>>
@@ -288,26 +299,33 @@ public class FindCommand extends AbstractCommand
 	}
 
 	@RequiredArgsConstructor
-	public static class FindPointFilter implements BiPredicate<FileData, Mutable<GPX>>
+	public class FindPointFilter implements BiPredicate<FileData, Mutable<GPX>>
 	{
 		final double[][] searchPoints;
 
 		@Override
 		public boolean test(FileData fileData, Mutable<GPX> gpx)
 		{
+			double[] skippingStart = options.skipDistance != null ? getFirstPoint(gpx.getValue()).orElse(null) : null;
 			List<WayPoint> waypoints = gpx.getValue().tracks()
 					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
 					.toList();
 
 			for (WayPoint waypoint : waypoints) {
+				double latitude = waypoint.getLatitude().doubleValue();
+				double longitude = waypoint.getLongitude().doubleValue();
+				if (skippingStart != null) {
+					if (GeoCalc.isWithinRadius(latitude, longitude, skippingStart[0], skippingStart[1], options.skipDistance)) {
+						continue;
+					}
+					else {
+						skippingStart = null;
+					}
+				}
 				if (waypoint.getTime().isPresent()) {
-					LocalDateTime timestamp = waypoint.getTime().get().atZone(ZoneId.systemDefault()).toLocalDateTime();
-
-					double latitude = waypoint.getLatitude().doubleValue();
-					double longitude = waypoint.getLongitude().doubleValue();
-
 					for (double[] point: searchPoints) {
 						if (GeoCalc.isWithinRadius(latitude, longitude, point[0], point[1], point[2])) {
+							LocalDateTime timestamp = waypoint.getTime().get().atZone(ZoneId.systemDefault()).toLocalDateTime();
 							fileData.attributes.put("foundPointLdt", timestamp);
 							return true;
 						}
@@ -496,6 +514,8 @@ public class FindCommand extends AbstractCommand
 		String sourceDir;
 
 		String sourceStravaCsv;
+
+		Double skipDistance;
 
 		List<BiPredicate<FileData, Mutable<GPX>>> filters = new ArrayList<>();
 

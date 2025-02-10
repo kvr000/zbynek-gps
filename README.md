@@ -75,6 +75,7 @@ Finds specific point (within radius) in set of files and prints the files and ti
 - `--group-found-time time-format` : groups and prints found time
 - `--export-gpx directory` : exports found files to directory/id.gpx files
 - `--remove-privacy-zone lat,lon,radius` : removes privacy zone from output
+- `--skip-distance radius` : starts searching after leaving radius from start
 
 
 ## fit-to-gps
