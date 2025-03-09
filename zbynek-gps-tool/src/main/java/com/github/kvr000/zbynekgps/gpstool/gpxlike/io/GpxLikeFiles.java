@@ -3,8 +3,10 @@ package com.github.kvr000.zbynekgps.gpstool.gpxlike.io;
 import com.github.kvr000.zbynekgps.gpstool.compress.AutoDecompressInputStream;
 import com.github.kvr000.zbynekgps.gpstool.fit.io.FitFiles;
 import com.github.kvr000.zbynekgps.gpstool.gpx.io.GpxFiles;
+import com.google.common.base.Stopwatch;
 import io.jenetics.jpx.GPX;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -16,9 +18,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
 
+@Log4j2
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
 public class GpxLikeFiles
 {
@@ -48,6 +52,7 @@ public class GpxLikeFiles
 
 	public GPX readGpxDecompressed(Path input) throws IOException
 	{
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (InputStream stream = Files.newInputStream(input)) {
 			InputStream real = stream;
 			String filename = input.getFileName().toString();
@@ -72,6 +77,20 @@ public class GpxLikeFiles
 					throw new IOException("Unsupported extension: " + ext);
 				}
 			}
+		}
+		finally {
+			log.debug("Read GPX like file: file={} time={}us", input, stopwatch.elapsed(TimeUnit.MICROSECONDS));
+		}
+	}
+
+	public GPX readGpxLikeSafe(Path filePath)
+	{
+		try {
+			return readGpxDecompressed(filePath);
+		}
+		catch (IOException ex) {
+			log.error("Failed to read file: " + filePath + " : " + ex.getMessage(), ex);
+			return null;
 		}
 	}
 

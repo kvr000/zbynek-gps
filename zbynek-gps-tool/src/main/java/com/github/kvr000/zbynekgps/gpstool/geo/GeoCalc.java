@@ -1,6 +1,9 @@
 package com.github.kvr000.zbynekgps.gpstool.geo;
 
 
+import io.jenetics.jpx.WayPoint;
+
+
 public class GeoCalc
 {
 	public static boolean isWithinRadius(double lat1, double lon1, double lat2, double lon2, double radiusMeters)
@@ -16,4 +19,12 @@ public class GeoCalc
 		return distance <= radiusMeters;
 	}
 
+	public static boolean isWithinRadius(WayPoint one, WayPoint two, double radiusMeters)
+	{
+		return isWithinRadius(
+			one.getLatitude().doubleValue(), one.getLongitude().doubleValue(),
+			two.getLatitude().doubleValue(), two.getLongitude().doubleValue(),
+			radiusMeters
+		);
+	}
 }

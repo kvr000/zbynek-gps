@@ -4,6 +4,7 @@ import com.github.kvr000.zbynekgps.gpstool.command.ConcatCommand;
 import com.github.kvr000.zbynekgps.gpstool.command.CutCommand;
 import com.github.kvr000.zbynekgps.gpstool.command.FindCommand;
 import com.github.kvr000.zbynekgps.gpstool.command.FitToGpxCommand;
+import com.github.kvr000.zbynekgps.gpstool.command.MatchCommand;
 import com.github.kvr000.zbynekgps.gpstool.command.RetrackCommand;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
@@ -100,6 +101,7 @@ public class ZbynekGpsTool extends AbstractParentCommand
 			"cut", CutCommand.class,
 			"retrack", RetrackCommand.class,
 			"find", FindCommand.class,
+			"match", MatchCommand.class,
 			"fit-to-gpx", FitToGpxCommand.class,
 			"help", HelpOfHelpCommand.class
 		);
@@ -112,6 +114,7 @@ public class ZbynekGpsTool extends AbstractParentCommand
 			"cut", "Cuts the period from track",
 			"retrack", "Recalculates location for time when the device did not have GPS signal",
 			"find", "Finds locations in set of files",
+			"match", "Match two sets of input files",
 			"fit-to-gpx", "Converts fit file to gpx",
 			"help [command]", "Prints help"
 		);

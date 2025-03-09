@@ -2,6 +2,7 @@ package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
 import com.github.kvr000.zbynekgps.gpstool.geo.GeoCalc;
+import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxUtil;
 import com.github.kvr000.zbynekgps.gpstool.gpxlike.io.GpxLikeFiles;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -92,6 +94,28 @@ public class FindCommand extends AbstractCommand
 			options.filters.add(new FindPointFilter(findPointDefs));
 			return true;
 
+		case "--dismiss-if-in-zone":
+			double[][] dismissPointDefs = Stream.of(needArgsParam(null, args).split(":"))
+				.map(one -> {
+					String[] findPointDefStr = one.split(",");
+					if (findPointDefStr.length != 3) {
+						throw new IllegalArgumentException("--dismiss-if-in-zone requires arguments lat,lon,radius , possibly multiple separated by :, got: " + one);
+					}
+					return Stream.of(findPointDefStr).mapToDouble(Double::parseDouble).toArray();
+				})
+				.toArray(double[][]::new);
+			options.filters.add(new DismissIfInZoneFilter(dismissPointDefs));
+			return true;
+
+		case "--decrease-density":
+			long intervalSeconds = Long.parseLong(needArgsParam(null, args));
+			options.filters.add(new DecreaseDensityFilter(intervalSeconds));
+			return true;
+
+		case "--remove-extensions":
+			options.filters.add(new RemoveExtensionsFilter());
+			return true;
+
 		case "--remove-privacy-zone":
 			String[] zoneStr = needArgsParam(null, args).split(",");
 			if (zoneStr.length != 3) {
@@ -143,18 +167,21 @@ public class FindCommand extends AbstractCommand
 	@Override
 	protected Map<String, String> configOptionsDescription(CommandContext context)
 	{
-		return ImmutableMap.of(
-				"--source-dir directory", "read files from the directory",
-				"--source-strava-csv file", "read files from Strava activities.csv file",
-				"--since time", "filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)",
-				"--till time", "filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)",
-				"--find-point lat,lon,radius:...", "find one of the points with radius distance",
-				"--print-id-and-found-time time-format", "prints id and found local time",
-				"--group-found-time time-format", "groups and prints found time",
-				"--export-gpx directory", "exports found files to directory/id.gpx files",
-				"--remove-privacy-zone lat,lon,radius", "removes privacy zone from output",
-				"--skip-distance radius", "starts searching after leaving radius from start"
-		);
+		return ImmutableMap.<String, String>builder()
+			.put("--source-dir directory", "read files from the directory")
+			.put("--source-strava-csv file", "read files from Strava activities.csv file")
+			.put("--since time", "filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)")
+			.put("--till time", "filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)")
+			.put("--find-point lat,lon,radius:...", "find one of the points with radius distance")
+			.put("--dismiss-if-in-zone lat,lon,radius:...", "excludes activity completely if in zone (full privacy)")
+			.put("--decrease-density interval-seconds", "decreases density of data to interval")
+			.put("--remove-extensions", "removes all extensions")
+			.put("--print-id-and-found-time time-format", "prints id and found local time")
+			.put("--group-found-time time-format", "groups and prints found time")
+			.put("--export-gpx directory", "exports found files to directory/id.gpx files")
+			.put("--remove-privacy-zone lat,lon,radius", "removes privacy zone from output")
+			.put("--skip-distance radius", "starts searching after leaving radius from start")
+			.build();
 	}
 
 	@Override
@@ -307,9 +334,7 @@ public class FindCommand extends AbstractCommand
 		public boolean test(FileData fileData, Mutable<GPX> gpx)
 		{
 			double[] skippingStart = options.skipDistance != null ? getFirstPoint(gpx.getValue()).orElse(null) : null;
-			List<WayPoint> waypoints = gpx.getValue().tracks()
-					.flatMap(track -> track.segments().flatMap(segment -> segment.points()))
-					.toList();
+			List<WayPoint> waypoints = GpxUtil.expandToWaypoints(gpx.getValue());
 
 			for (WayPoint waypoint : waypoints) {
 				double latitude = waypoint.getLatitude().doubleValue();
@@ -333,6 +358,31 @@ public class FindCommand extends AbstractCommand
 				}
 			}
 			return false;
+		}
+	}
+
+	@RequiredArgsConstructor
+	public class DismissIfInZoneFilter implements BiPredicate<FileData, Mutable<GPX>>
+	{
+		final double[][] searchPoints;
+
+		@Override
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
+		{
+			List<WayPoint> waypoints = GpxUtil.expandToTimedWaypoints(gpx.getValue());
+
+			for (WayPoint waypoint: waypoints) {
+				double latitude = waypoint.getLatitude().doubleValue();
+				double longitude = waypoint.getLongitude().doubleValue();
+				if (waypoint.getTime().isPresent()) {
+					for (double[] point : searchPoints) {
+						if (GeoCalc.isWithinRadius(latitude, longitude, point[0], point[1], point[2])) {
+							return false;
+						}
+					}
+				}
+			}
+			return true;
 		}
 	}
 
@@ -408,6 +458,75 @@ public class FindCommand extends AbstractCommand
 			}
 			gpx.setValue(gpxBuilder.build());
 			return !gpx.getValue().getTracks().isEmpty();
+		}
+	}
+
+	@RequiredArgsConstructor
+	public static abstract class ModifyWaypointsFilter implements BiPredicate<FileData, Mutable<GPX>>
+	{
+		@Override
+		public boolean test(FileData fileData, Mutable<GPX> gpx)
+		{
+			GPX.Builder gpxBuilder = gpx.getValue().toBuilder();
+			{
+				List<Track> tracks = new ArrayList<>();
+				for (Track track : gpxBuilder.tracks()) {
+					List<TrackSegment> segments = new ArrayList<>();
+					for (TrackSegment segment : track.getSegments()) {
+						List<WayPoint> wayPoints = modifyWayPoints(segment.getPoints());
+						if (!wayPoints.isEmpty()) {
+							segments.add(segment.toBuilder().points(wayPoints).build());
+						}
+					}
+					if (!segments.isEmpty()) {
+						tracks.add(track.toBuilder().segments(segments).build());
+					}
+				}
+				gpxBuilder.tracks(tracks);
+			}
+			gpx.setValue(gpxBuilder.build());
+			return !gpxBuilder.tracks().isEmpty();
+		}
+
+		public abstract List<WayPoint> modifyWayPoints(List<WayPoint> points);
+	}
+
+	@RequiredArgsConstructor
+	public static class DecreaseDensityFilter extends ModifyWaypointsFilter
+	{
+		final long intervalSeconds;
+
+		@Override
+		public List<WayPoint> modifyWayPoints(List<WayPoint> points)
+		{
+			List<WayPoint> out = new ArrayList<>();
+			Instant last = Instant.MIN;
+			int i = 0, len = points.size();
+			for (WayPoint wayPoint : points) {
+				if (i++ == 0 || i == len) {
+					out.add(wayPoint);
+					if (wayPoint.getTime().isPresent()) {
+						last = wayPoint.getTime().get();
+					}
+				}
+				else if (wayPoint.getTime().isPresent() && last.until(wayPoint.getTime().get(), ChronoUnit.SECONDS) >= intervalSeconds) {
+					out.add(wayPoint);
+					last = wayPoint.getTime().get();
+				}
+			}
+			return out;
+		}
+	}
+
+	@RequiredArgsConstructor
+	public static class RemoveExtensionsFilter extends ModifyWaypointsFilter
+	{
+		@Override
+		public List<WayPoint> modifyWayPoints(List<WayPoint> points)
+		{
+			return points.stream()
+				.map(p -> p.toBuilder().extensions(null).build())
+				.toList();
 		}
 	}
 

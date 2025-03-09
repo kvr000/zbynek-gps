@@ -3,6 +3,7 @@ package com.github.kvr000.zbynekgps.gpstool.gpx.util;
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
 import io.jenetics.jpx.GPX;
+import io.jenetics.jpx.Track;
 import io.jenetics.jpx.TrackSegment;
 import io.jenetics.jpx.WayPoint;
 
@@ -43,5 +44,22 @@ public class GpxUtil
 		return GPX.builder()
 			.wayPoints(points)
 			.build();
+	}
+
+	public static List<WayPoint> expandToWaypoints(GPX gpx)
+	{
+		return gpx.tracks()
+			.flatMap(Track::segments)
+			.flatMap(TrackSegment::points)
+			.toList();
+	}
+
+	public static List<WayPoint> expandToTimedWaypoints(GPX gpx)
+	{
+		return gpx.tracks()
+			.flatMap(Track::segments)
+			.flatMap(TrackSegment::points)
+			.filter(point -> point.getTime().isPresent())
+			.toList();
 	}
 }

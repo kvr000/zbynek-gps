@@ -9,6 +9,11 @@ Command line utility to manipulate GPX files.
 - https://github.com/kvr000/zbynek-gps/releases/tag/master
 
 
+## Input
+
+The tool is usually able to process `.gpx`, `.gpx.gz`, `.fit`, `.fit.gz` files as input.  It writes only `.gpx` .
+
+
 ## Usage
 
 ```
@@ -67,15 +72,31 @@ Finds specific point (within radius) in set of files and prints the files and ti
 
 ### Options:
 - `--source-dir directory` : read files from the directory
-- `--source-strava-csv file` : read files from Strava activities.csv
+- `--source-strava-csv file` : read files from Strava activities.csv file
 - `--since time` : filters by activity start time being higher inclusive (YYYY-MM-DDTHH:mm:ssZ)
 - `--till time` : filters by activity start time being lower exclusive (YYYY-MM-DDTHH:mm:ssZ)
 - `--find-point lat,lon,radius:...` : find one of the points with radius distance
+- `--dismiss-if-in-zone lat,lon,radius:...` : excludes activity completely if in zone (full privacy)
+- `--decrease-density interval-seconds` : decreases density of data to interval
+- `--remove-extensions` : removes all extensions
 - `--print-id-and-found-time time-format` : prints id and found local time
 - `--group-found-time time-format` : groups and prints found time
 - `--export-gpx directory` : exports found files to directory/id.gpx files
 - `--remove-privacy-zone lat,lon,radius` : removes privacy zone from output
 - `--skip-distance radius` : starts searching after leaving radius from start
+
+
+## match
+
+```
+Usage: zbynek-gps-tool match --source-dir-1 directory --source-dir-2 directory
+```
+
+Matches two sets of activities and finds common points.
+
+### Options:
+- `--source-dir-1 directory` : read files from the directory
+- `--source-dir-2 directory` : read files from the directory
 
 
 ## fit-to-gps
