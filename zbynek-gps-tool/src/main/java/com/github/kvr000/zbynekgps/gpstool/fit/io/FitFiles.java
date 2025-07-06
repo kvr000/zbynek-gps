@@ -28,6 +28,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -79,7 +80,6 @@ public class FitFiles
 				wayPoints.clear();
 
 			};
-			Stopwatch watch = Stopwatch.createStarted();
 			Decode decode = new Decode();
 			MesgBroadcaster mesgBroadcaster = new MesgBroadcaster(decode);
 
@@ -122,8 +122,21 @@ public class FitFiles
 					Document extensions = docBuilder.newDocument();
 					extensions.createAttribute("xmlns:" + TRACK_POINT_EXTENSIONS_ID).setValue(TRACK_POINT_EXTENSIONS_NS);
 					extensions.appendChild(extensions.createElement("extensions"));
-					WayPoint.Builder wayPoint = WayPoint.builder()
-						.time(recordMesg.getTimestamp().getDate().toInstant())
+					Instant time = recordMesg.getTimestamp().getDate().toInstant();
+					WayPoint.Builder wayPoint = null;
+					if (!wayPoints.isEmpty()) {
+						WayPoint last = wayPoints.getLast();
+						if (last.getTime().isPresent() && last.getTime().get().equals(time)) {
+							wayPoints.removeLast();
+							wayPoint = last.toBuilder();
+							extensions = wayPoint.extensions().orElse(extensions);
+						}
+					}
+					if (wayPoint == null) {
+						wayPoint = WayPoint.builder()
+							.time(recordMesg.getTimestamp().getDate().toInstant());
+					}
+					wayPoint
 						.lon(lastLon.getValue())
 						.lat(lastLat.getValue());
 					Optional<Float> altitude = Optional.ofNullable(recordMesg.getAltitude());

@@ -295,7 +295,7 @@ public class RetrackCommand extends AbstractCommand
 				.collect(Collectors.toMap(
 					p -> p.getTime().get(),
 					p ->p,
-					(a, b) -> { throw new IllegalArgumentException("time appeared twice"); },
+					(a, b) -> { throw new IllegalArgumentException("time appeared twice: " + a.getTime().get()); },
 					TreeMap::new
 				))
 			)
