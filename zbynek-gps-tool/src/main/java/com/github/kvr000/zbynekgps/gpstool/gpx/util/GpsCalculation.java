@@ -31,13 +31,13 @@ public class GpsCalculation
 	 */
 	public static Point calculateMidpoint(Point o, Point n, Instant time)
 	{
-		long diff = o.getTime().get().until(n.getTime().get(), ChronoUnit.MILLIS);
+		long timeDiff = o.getTime().get().until(n.getTime().get(), ChronoUnit.MILLIS);
 		long current = o.getTime().get().until(time, ChronoUnit.MILLIS);
-		if (diff == 0) {
+		if (timeDiff == 0) {
 			// this should not really happen, otherwise the p would already have the location
-			diff = 1;
+			timeDiff = 1;
 		}
-		double ratio = (double) current / diff;
+		double ratio = (double) current / timeDiff;
 
 		double lngO = o.getLongitude().doubleValue(), lngN = n.getLongitude().doubleValue();
 		double latO = o.getLatitude().doubleValue(), latN = n.getLatitude().doubleValue();

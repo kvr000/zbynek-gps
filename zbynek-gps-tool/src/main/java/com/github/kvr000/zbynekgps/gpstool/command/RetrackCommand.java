@@ -323,8 +323,8 @@ public class RetrackCommand extends AbstractCommand
 			.toList();
 	}
 
-	                                         @Value
-	                                         @Builder
+	@Value
+	@Builder
 	public static class PointSources
 	{
 		/** Positions combined from all sources */

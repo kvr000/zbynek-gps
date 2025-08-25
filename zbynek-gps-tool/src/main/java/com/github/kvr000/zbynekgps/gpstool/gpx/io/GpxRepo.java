@@ -19,6 +19,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 
+/**
+ * GPX files repository, indexed by time.
+ */
 @Log4j2
 public class GpxRepo
 {
@@ -53,9 +56,17 @@ public class GpxRepo
 		finally {
 			log.info("Indexed repo: files={} time={} ms", files.size(), watch.elapsed(TimeUnit.MILLISECONDS));
 		}
-
 	}
 
+	/**
+	 * Gets GPX file path based on time.
+	 *
+	 * @param milli
+	 *      time in milliseconds
+	 *
+	 * @return
+	 *      WayPoint for the time and associated path.
+	 */
 	public synchronized Pair<WayPoint, Path> getEpochMilli(long milli)
 	{
 		Map.Entry<Long, Map.Entry<Long, Path>> found = timeToFiles.floorEntry(milli);
