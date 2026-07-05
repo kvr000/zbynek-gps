@@ -33,6 +33,7 @@
 
 		<jpx.version>3.2.1</jpx.version>
 		<garmin-fit.version>21.141.0</garmin-fit.version>
+		<dom4j.version>2.2.0</dom4j.version>
 
 	</properties>
 
@@ -186,6 +187,12 @@
 			<groupId>com.garmin</groupId>
 			<artifactId>fit</artifactId>
 			<version>${garmin-fit.version}</version> <!-- Update this to the latest version -->
+		</dependency>
+
+		<dependency>
+			<groupId>org.dom4j</groupId>
+			<artifactId>dom4j</artifactId>
+			<version>${dom4j.version}</version>
 		</dependency>
 
 	</dependencies>

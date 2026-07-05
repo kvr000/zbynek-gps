@@ -1,6 +1,7 @@
 package com.github.kvr000.zbynekgps.gpstool.command;
 
 import com.github.kvr000.zbynekgps.gpstool.ZbynekGpsTool;
+import com.github.kvr000.zbynekgps.gpstool.gpx.io.GpxFiles;
 import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpsCalculation;
 import com.github.kvr000.zbynekgps.gpstool.gpx.util.GpxUtil;
 import com.github.kvr000.zbynekgps.gpstool.gpxlike.io.GpxLikeFiles;
@@ -152,9 +153,9 @@ public class RetrackCommand extends AbstractCommand
 		PointSources pointSources = buildPointSources(pointData);
 
 		if (mainOptions.isDebug()) {
-			GPX.write(
-				GpxUtil.buildGpx(toWayPoints(pointSources.positions.values())),
-				Paths.get(mainOptions.getOutput() + ".debug.gpx")
+			gpxLikeFiles.writeGpx(
+				Paths.get(mainOptions.getOutput() + ".debug.gpx"),
+				GpxUtil.buildGpx(toWayPoints(pointSources.positions.values()))
 			);
 		}
 
@@ -163,7 +164,7 @@ public class RetrackCommand extends AbstractCommand
 		log.info("Retracked locations in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 
 		watch.reset(); watch.start();
-		GPX.write(output, Paths.get(mainOptions.getOutput()));
+		gpxLikeFiles.writeGpx(Paths.get(mainOptions.getOutput()), output);
 		log.info("Written output in {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
 		return EXIT_SUCCESS;
 	}
@@ -180,7 +181,7 @@ public class RetrackCommand extends AbstractCommand
 		return ImmutableMap.of(
 			"--position-prio", "comma separated source file indexes to obtain position from, 0 refers to main file - example 0,2,1",
 			"--elevation-prio", "comma separated source file indexes to obtain elevation from, 0 refers to main file - example 0,2,1",
-			"--calc-missing", "do not calculate missing points",
+			"--calc-missing", "calculate missing points",
 			"--merge-timeout", "minimum timeout to include point from different source"
 		);
 	}
@@ -243,6 +244,11 @@ public class RetrackCommand extends AbstractCommand
 				b
 					.lon(m.getLongitude())
 					.lat(m.getLatitude());
+			}
+			else if (o != null) {
+				b
+					.lon(o.getLongitude())
+					.lat(o.getLatitude());
 			}
 		}
 		PointSource elevation;
