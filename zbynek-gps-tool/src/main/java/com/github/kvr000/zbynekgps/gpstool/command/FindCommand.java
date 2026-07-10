@@ -21,7 +21,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -195,20 +196,31 @@ public class FindCommand extends AbstractCommand
 			try (Reader activitiesCsv = Files.newBufferedReader(Paths.get(options.sourceStravaCsv));
 				 CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(activitiesCsv);
 			) {
-				for (CSVRecord record : parser) {
-					String filename = record.get("Filename");
-					if (filename.isEmpty()) {
-						continue;
-					}
-					FileData fileData = new FileData();
-					fileData.id = record.get("Activity ID");
-					fileData.filename = Paths.get(options.sourceStravaCsv).resolveSibling(filename);
-					fileData.metadata = ImmutableMap.of(
+				parser.stream()
+					.map(record -> {
+						String filename = record.get("Filename");
+						if (filename.isEmpty()) {
+							return null;
+						}
+						FileData fileData = new FileData();
+						fileData.id = record.get("Activity ID");
+						fileData.filename = Paths.get(options.sourceStravaCsv).resolveSibling(filename);
+						fileData.metadata = ImmutableMap.of(
 							"id", fileData.id,
 							"name", record.get("Activity Name")
 						);
-					inputs.put(fileData.id, fileData);
-				}
+						return fileData;
+					})
+					.filter(Objects::nonNull)
+					.sorted(Comparator.nullsFirst(Comparator.comparing(fileData -> {
+						try {
+							return Long.parseLong(fileData.id);
+						}
+						catch (Exception ex) {
+							return null;
+						}
+					})))
+					.forEach(fileData -> inputs.put(fileData.id, fileData));
 			}
 		}
 		else {

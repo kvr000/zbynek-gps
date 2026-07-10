@@ -24,7 +24,7 @@ import net.dryuf.cmdline.command.CommandContext;
 import net.dryuf.cmdline.command.HelpOfHelpCommand;
 import net.dryuf.cmdline.command.RootCommandContext;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.util.Arrays;
 import java.util.ListIterator;
 import java.util.Map;

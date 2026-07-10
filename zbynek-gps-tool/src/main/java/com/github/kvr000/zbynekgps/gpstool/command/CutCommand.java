@@ -19,7 +19,7 @@ import lombok.extern.log4j.Log4j2;
 import net.dryuf.cmdline.command.AbstractCommand;
 import net.dryuf.cmdline.command.CommandContext;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
